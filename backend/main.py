@@ -1,18 +1,24 @@
 import os
 import json
+import logging
 from pathlib import Path
 from contextlib import asynccontextmanager
 from typing import List
 
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from sqlalchemy.orm import Session
 
 from database import init_db, get_db
 from routers import auth_router, calibration_router, psychometric_router
 from db_models import User
+from auth import get_current_user
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -31,14 +37,29 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS configuration - allow all for Cloud Run
+# CORS configuration - use environment variable in production
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*").split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# ==================== GLOBAL ERROR HANDLER ====================
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    """Handle all unhandled exceptions and return JSON response."""
+    logger.error(f"Unhandled exception: {exc}", exc_info=True)
+    return JSONResponse(
+        status_code=500,
+        content={
+            "detail": str(exc) if os.getenv("DEBUG", "false").lower() == "true" else "Internal server error",
+            "type": type(exc).__name__
+        }
+    )
 
 # Include API routers
 app.include_router(auth_router)
@@ -85,11 +106,14 @@ async def get_status():
     }
 
 
-# ==================== ADMIN/DEBUG ENDPOINTS ====================
+# ==================== ADMIN/DEBUG ENDPOINTS (Protected) ====================
 
 @app.get("/api/admin/users")
-async def list_users(db: Session = Depends(get_db)):
-    """List all registered users (for testing/admin)."""
+async def list_users(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """List all registered users (protected - requires auth)."""
     users = db.query(User).all()
     return {
         "total": len(users),
@@ -108,8 +132,8 @@ async def list_users(db: Session = Depends(get_db)):
 
 
 @app.get("/api/admin/profiles")
-async def list_profiles():
-    """List all generated visual vector profiles."""
+async def list_profiles(current_user: User = Depends(get_current_user)):
+    """List all generated visual vector profiles (protected - requires auth)."""
     data_dir = Path(os.getenv("DATA_DIR", "/app/data"))
     profiles_dir = data_dir / "profiles"
 
@@ -147,8 +171,8 @@ async def list_profiles():
 
 
 @app.get("/api/admin/profiles/{user_id}")
-async def get_profile_detail(user_id: str):
-    """Get detailed profile data for a specific user."""
+async def get_profile_detail(user_id: str, current_user: User = Depends(get_current_user)):
+    """Get detailed profile data for a specific user (protected - requires auth)."""
     data_dir = Path(os.getenv("DATA_DIR", "/app/data"))
     vector_file = data_dir / "profiles" / user_id / "p1_visual_vector.json"
 
@@ -166,8 +190,11 @@ async def get_profile_detail(user_id: str):
 
 
 @app.get("/api/admin/db-info")
-async def get_db_info(db: Session = Depends(get_db)):
-    """Get database information."""
+async def get_db_info(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get database information (protected - requires auth)."""
     from database import DATABASE_URL
     user_count = db.query(User).count()
 
