@@ -20,5 +20,6 @@ pillow>=10.0.0
 
 # Utilities
 python-dotenv>=1.0.0
+httpx>=0.25.0
 
 # Note: torch/torchvision installed in Dockerfile for CPU-only

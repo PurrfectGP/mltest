@@ -7,7 +7,7 @@ from contextlib import asynccontextmanager
 from typing import List
 from datetime import datetime, timezone
 
-from fastapi import FastAPI, Depends, Request
+from fastapi import FastAPI, Depends, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
@@ -372,6 +372,82 @@ async def download_profile(
         media_type="application/json",
         headers={"Content-Disposition": f"attachment; filename=harmonia_profile_{current_user.id}.json"}
     )
+
+
+# ==================== CALIBRATION IMAGE SETUP ====================
+
+@app.post("/api/setup/download-images")
+async def download_calibration_images(
+    current_user: User = Depends(get_current_user)
+):
+    """Download calibration images from Unsplash and save locally."""
+    import httpx
+
+    DATA_DIR = Path(os.getenv("DATA_DIR", "/app/data"))
+    calibration_dir = DATA_DIR / "global_calibration"
+    calibration_dir.mkdir(parents=True, exist_ok=True)
+
+    # Check if images already exist
+    existing = list(calibration_dir.glob("*.jpg"))
+    if len(existing) >= 10:
+        return {"status": "ready", "message": "Images already downloaded", "count": len(existing)}
+
+    # Unsplash portrait URLs (5 male, 5 female - curated for quality)
+    portraits = [
+        # Male portraits
+        ("male_1", "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=500&fit=crop&crop=faces"),
+        ("male_2", "https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=400&h=500&fit=crop&crop=faces"),
+        ("male_3", "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&h=500&fit=crop&crop=faces"),
+        ("male_4", "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=400&h=500&fit=crop&crop=faces"),
+        ("male_5", "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&h=500&fit=crop&crop=faces"),
+        # Female portraits
+        ("female_1", "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=500&fit=crop&crop=faces"),
+        ("female_2", "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=400&h=500&fit=crop&crop=faces"),
+        ("female_3", "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&h=500&fit=crop&crop=faces"),
+        ("female_4", "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=400&h=500&fit=crop&crop=faces"),
+        ("female_5", "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=400&h=500&fit=crop&crop=faces"),
+    ]
+
+    downloaded = 0
+    errors = []
+
+    async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
+        for name, url in portraits:
+            filepath = calibration_dir / f"{name}.jpg"
+            if filepath.exists():
+                downloaded += 1
+                continue
+            try:
+                response = await client.get(url)
+                if response.status_code == 200:
+                    with open(filepath, "wb") as f:
+                        f.write(response.content)
+                    downloaded += 1
+                    logger.info(f"Downloaded {name}")
+                else:
+                    errors.append(f"{name}: HTTP {response.status_code}")
+            except Exception as e:
+                errors.append(f"{name}: {str(e)}")
+
+    return {
+        "status": "ready" if downloaded >= 10 else "partial",
+        "downloaded": downloaded,
+        "total": len(portraits),
+        "errors": errors if errors else None
+    }
+
+
+@app.get("/api/setup/status")
+async def check_setup_status():
+    """Check if calibration images are ready."""
+    DATA_DIR = Path(os.getenv("DATA_DIR", "/app/data"))
+    calibration_dir = DATA_DIR / "global_calibration"
+
+    if not calibration_dir.exists():
+        return {"ready": False, "count": 0}
+
+    images = list(calibration_dir.glob("*.jpg"))
+    return {"ready": len(images) >= 10, "count": len(images)}
 
 
 # ==================== SPA CATCH-ALL (must be last) ====================
