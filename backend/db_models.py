@@ -3,7 +3,7 @@ from datetime import datetime
 from sqlalchemy import Column, String, DateTime, Boolean, Text, JSON
 from sqlalchemy.dialects.postgresql import UUID
 
-from backend.database import Base
+from database import Base
 
 
 def generate_uuid():

@@ -10,7 +10,7 @@ import torch.nn.functional as F
 from torchvision import transforms
 from PIL import Image
 
-from backend.models import ResNetBackbone, DynamicLearner
+from models import ResNetBackbone, DynamicLearner
 
 
 class VisualService:
