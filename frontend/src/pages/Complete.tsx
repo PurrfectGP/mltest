@@ -43,6 +43,25 @@ export default function Complete() {
     navigate('/login')
   }
 
+  const handleDownload = async () => {
+    if (!token) return
+    try {
+      const response = await fetch('/api/profile/download', {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      const data = await response.json()
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `harmonia_profile_${user?.id || 'export'}.json`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      console.error('Download failed:', err)
+    }
+  }
+
   return (
     <div className="complete-page">
       <div className="complete-container">
@@ -102,6 +121,9 @@ export default function Complete() {
         )}
 
         <div className="actions">
+          <button className="btn btn-primary" onClick={handleDownload}>
+            Download Profile & MetaFBP Data
+          </button>
           <button className="btn btn-secondary" onClick={handleLogout}>
             Sign Out
           </button>

@@ -285,3 +285,60 @@ async def clear_logs(current_user: User = Depends(get_current_user)):
         return {"message": "Logs cleared", "file": str(LOG_FILE)}
     except Exception as e:
         return {"error": str(e)}
+
+
+# ==================== PROFILE DOWNLOAD ENDPOINT ====================
+
+@app.get("/api/profile/download")
+async def download_profile(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Download user profile and MetaFBP calibration data as JSON."""
+    from services import VisualService
+
+    # Get visual vector
+    service = VisualService(data_dir=os.getenv("DATA_DIR", "/app/data"))
+    vector_data = service.load_vector(current_user.id)
+
+    # Get calibration ratings from DB
+    from db_models import CalibrationRating, PsychometricResponse
+    ratings = db.query(CalibrationRating).filter(
+        CalibrationRating.user_id == current_user.id
+    ).all()
+
+    psychometric = db.query(PsychometricResponse).filter(
+        PsychometricResponse.user_id == current_user.id
+    ).all()
+
+    # Build complete profile
+    profile = {
+        "user": {
+            "id": current_user.id,
+            "username": current_user.username,
+            "email": current_user.email,
+            "gender": current_user.gender,
+            "preference_target": current_user.preference_target,
+            "created_at": str(current_user.created_at),
+            "calibration_complete": current_user.calibration_complete,
+            "psychometric_complete": current_user.psychometric_complete
+        },
+        "calibration_ratings": [
+            {"image_id": r.image_id, "rating": r.rating, "created_at": str(r.created_at)}
+            for r in ratings
+        ],
+        "psychometric_responses": [
+            {"question_id": p.question_id, "selected_option_id": p.selected_option_id,
+             "traits_extracted": p.traits_extracted, "created_at": str(p.created_at)}
+            for p in psychometric
+        ],
+        "metafbp_vector": vector_data,
+        "export_timestamp": datetime.now(timezone.utc).isoformat()
+    }
+
+    from fastapi.responses import Response
+    return Response(
+        content=json.dumps(profile, indent=2),
+        media_type="application/json",
+        headers={"Content-Disposition": f"attachment; filename=harmonia_profile_{current_user.id}.json"}
+    )

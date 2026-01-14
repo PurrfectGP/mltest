@@ -366,8 +366,9 @@ class VisualService:
                 })
 
         # If no real images, use Unsplash portrait photos (free, no API key needed)
+        # Using source.unsplash.com which handles redirects for short IDs
         if not images:
-            # Curated portrait photo IDs from Unsplash
+            # Curated portrait photo IDs from Unsplash (short IDs/slugs)
             unsplash_portraits = [
                 "rDEOVtE7vOs", "mEZ3PoFGs_k", "sibVwORYqs0", "d2MSDujJl2g",
                 "6W4F62sN_yI", "QXevDflbl8A", "IF9TK5Uy-KI", "WNoLnJo7tS8",
@@ -380,7 +381,7 @@ class VisualService:
                 images.append({
                     "id": f"unsplash_{i + 1}",
                     "filename": f"unsplash_{i + 1}.jpg",
-                    "url": f"https://images.unsplash.com/photo-{photo_id}?w=400&h=500&fit=crop&crop=faces"
+                    "url": f"https://source.unsplash.com/{photo_id}/400x500"
                 })
 
         return images

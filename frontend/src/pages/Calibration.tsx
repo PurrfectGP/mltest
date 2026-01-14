@@ -38,7 +38,7 @@ export default function Calibration() {
 
   const getUnsplashUrl = (index: number): string => {
     const photoId = unsplashPortraits[index % unsplashPortraits.length]
-    return `https://images.unsplash.com/photo-${photoId}?w=400&h=500&fit=crop&crop=faces`
+    return `https://source.unsplash.com/${photoId}/400x500`
   }
 
   // Load calibration images
