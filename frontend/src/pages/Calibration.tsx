@@ -27,6 +27,20 @@ export default function Calibration() {
     }
   }, [user, navigate])
 
+  // Unsplash portrait photo IDs for fallback (matches backend)
+  const unsplashPortraits = [
+    "rDEOVtE7vOs", "mEZ3PoFGs_k", "sibVwORYqs0", "d2MSDujJl2g",
+    "6W4F62sN_yI", "QXevDflbl8A", "IF9TK5Uy-KI", "WNoLnJo7tS8",
+    "MTZTGvDsHFY", "7YVZYZeITc8", "ILip77SbmOE", "C8Ta0gwPbQg",
+    "B4TjXnI0Y2c", "pAs4IM6OGWI", "d1UPkiFd04A", "2EGNqazbAMk",
+    "y4Y-JK7hwmI", "ZHvM3XIOHoE", "WMD64tMfc4k", "X6Uj51n5CE8"
+  ]
+
+  const getUnsplashUrl = (index: number): string => {
+    const photoId = unsplashPortraits[index % unsplashPortraits.length]
+    return `https://source.unsplash.com/${photoId}/400x500`
+  }
+
   // Load calibration images
   useEffect(() => {
     const loadImages = async () => {
@@ -34,22 +48,22 @@ export default function Calibration() {
       try {
         const data = await api.getCalibrationImages(token, 20)
         if (data.images.length === 0) {
-          // Generate placeholder images if none exist
-          const placeholders: CalibrationImage[] = Array.from({ length: 10 }, (_, i) => ({
-            id: `placeholder_${i + 1}`,
-            filename: `placeholder_${i + 1}.jpg`,
-            url: `https://picsum.photos/seed/${i + 1}/400/500`
+          // Generate Unsplash portrait images if none exist
+          const placeholders: CalibrationImage[] = Array.from({ length: 20 }, (_, i) => ({
+            id: `unsplash_${i + 1}`,
+            filename: `unsplash_${i + 1}.jpg`,
+            url: getUnsplashUrl(i)
           }))
           setImages(placeholders)
         } else {
           setImages(data.images)
         }
       } catch (err) {
-        // Use placeholder images on error
-        const placeholders: CalibrationImage[] = Array.from({ length: 10 }, (_, i) => ({
-          id: `placeholder_${i + 1}`,
-          filename: `placeholder_${i + 1}.jpg`,
-          url: `https://picsum.photos/seed/${i + 1}/400/500`
+        // Use Unsplash portraits on error
+        const placeholders: CalibrationImage[] = Array.from({ length: 20 }, (_, i) => ({
+          id: `unsplash_${i + 1}`,
+          filename: `unsplash_${i + 1}.jpg`,
+          url: getUnsplashUrl(i)
         }))
         setImages(placeholders)
         console.error(err)
@@ -150,7 +164,8 @@ export default function Calibration() {
               src={currentImage.url}
               alt={`Calibration image ${currentIndex + 1}`}
               onError={(e) => {
-                e.currentTarget.src = `https://picsum.photos/seed/${currentIndex}/400/500`
+                // Use Unsplash portrait on error
+                e.currentTarget.src = getUnsplashUrl(currentIndex)
               }}
             />
           </div>

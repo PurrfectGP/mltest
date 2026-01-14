@@ -365,13 +365,23 @@ class VisualService:
                     "url": f"/api/calibration/images/{img_path.name}"
                 })
 
-        # If no real images, provide demo placeholders
+        # If no real images, use Unsplash portrait photos (free, no API key needed)
+        # Using source.unsplash.com which handles redirects for short IDs
         if not images:
-            for i in range(1, count + 1):
+            # Curated portrait photo IDs from Unsplash (short IDs/slugs)
+            unsplash_portraits = [
+                "rDEOVtE7vOs", "mEZ3PoFGs_k", "sibVwORYqs0", "d2MSDujJl2g",
+                "6W4F62sN_yI", "QXevDflbl8A", "IF9TK5Uy-KI", "WNoLnJo7tS8",
+                "MTZTGvDsHFY", "7YVZYZeITc8", "ILip77SbmOE", "C8Ta0gwPbQg",
+                "B4TjXnI0Y2c", "pAs4IM6OGWI", "d1UPkiFd04A", "2EGNqazbAMk",
+                "y4Y-JK7hwmI", "ZHvM3XIOHoE", "WMD64tMfc4k", "X6Uj51n5CE8"
+            ]
+            for i in range(min(count, len(unsplash_portraits))):
+                photo_id = unsplash_portraits[i]
                 images.append({
-                    "id": f"demo_{i}",
-                    "filename": f"demo_{i}.jpg",
-                    "url": f"https://picsum.photos/seed/{i}/400/500"  # Random placeholder
+                    "id": f"unsplash_{i + 1}",
+                    "filename": f"unsplash_{i + 1}.jpg",
+                    "url": f"https://source.unsplash.com/{photo_id}/400x500"
                 })
 
         return images
