@@ -1,14 +1,16 @@
 import os
 import json
 import logging
+import traceback
 from pathlib import Path
 from contextlib import asynccontextmanager
 from typing import List
+from datetime import datetime, timezone
 
 from fastapi import FastAPI, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from sqlalchemy.orm import Session
 
 from database import init_db, get_db
@@ -16,9 +18,22 @@ from routers import auth_router, calibration_router, psychometric_router
 from db_models import User
 from auth import get_current_user
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
+# ==================== LOGGING SETUP ====================
+LOG_DIR = Path(os.getenv("DATA_DIR", "/app/data")) / "logs"
+LOG_DIR.mkdir(parents=True, exist_ok=True)
+LOG_FILE = LOG_DIR / "harmonia.log"
+
+# Configure logging with both console and file output
+logging.basicConfig(
+    level=logging.DEBUG if os.getenv("DEBUG", "false").lower() == "true" else logging.INFO,
+    format='%(asctime)s | %(levelname)s | %(name)s | %(message)s',
+    handlers=[
+        logging.StreamHandler(),  # Console output
+        logging.FileHandler(LOG_FILE, mode='a')  # File output
+    ]
+)
 logger = logging.getLogger(__name__)
+logger.info(f"=== Harmonia Starting === Log file: {LOG_FILE}")
 
 
 @asynccontextmanager
@@ -52,12 +67,31 @@ app.add_middleware(
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     """Handle all unhandled exceptions and return JSON response."""
-    logger.error(f"Unhandled exception: {exc}", exc_info=True)
+    # Log detailed error info
+    error_id = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S%f")
+    tb = traceback.format_exc()
+
+    logger.error(f"""
+================================================================================
+ERROR ID: {error_id}
+TIME: {datetime.now(timezone.utc).isoformat()}
+PATH: {request.method} {request.url.path}
+QUERY: {request.query_params}
+EXCEPTION TYPE: {type(exc).__name__}
+EXCEPTION: {exc}
+TRACEBACK:
+{tb}
+================================================================================
+""")
+
+    debug_mode = os.getenv("DEBUG", "false").lower() == "true"
     return JSONResponse(
         status_code=500,
         content={
-            "detail": str(exc) if os.getenv("DEBUG", "false").lower() == "true" else "Internal server error",
-            "type": type(exc).__name__
+            "detail": str(exc) if debug_mode else "Internal server error",
+            "type": type(exc).__name__,
+            "error_id": error_id,
+            "hint": "Check /api/logs for full details" if debug_mode else None
         }
     )
 
@@ -202,3 +236,52 @@ async def get_db_info(
         "database_url": DATABASE_URL.replace("://", "://***:***@") if "@" in DATABASE_URL else DATABASE_URL,
         "user_count": user_count
     }
+
+
+# ==================== LOG VIEWING ENDPOINT ====================
+
+@app.get("/api/logs")
+async def get_logs(lines: int = 100, search: str = None):
+    """
+    View application logs (no auth required for debugging).
+    - lines: Number of lines to return (default 100, max 1000)
+    - search: Optional search term to filter logs
+    """
+    lines = min(lines, 1000)  # Cap at 1000 lines
+
+    if not LOG_FILE.exists():
+        return PlainTextResponse("No logs yet.", media_type="text/plain")
+
+    try:
+        with open(LOG_FILE, 'r') as f:
+            all_lines = f.readlines()
+
+        # Get last N lines
+        log_lines = all_lines[-lines:]
+
+        # Filter by search term if provided
+        if search:
+            log_lines = [l for l in log_lines if search.lower() in l.lower()]
+
+        log_content = ''.join(log_lines)
+
+        return PlainTextResponse(
+            f"=== Harmonia Logs (last {len(log_lines)} lines) ===\n"
+            f"=== Log file: {LOG_FILE} ===\n"
+            f"=== Total lines in file: {len(all_lines)} ===\n\n"
+            f"{log_content}",
+            media_type="text/plain"
+        )
+    except Exception as e:
+        return PlainTextResponse(f"Error reading logs: {e}", media_type="text/plain")
+
+
+@app.delete("/api/logs")
+async def clear_logs(current_user: User = Depends(get_current_user)):
+    """Clear the log file (protected - requires auth)."""
+    try:
+        with open(LOG_FILE, 'w') as f:
+            f.write(f"=== Logs cleared at {datetime.now(timezone.utc).isoformat()} ===\n")
+        return {"message": "Logs cleared", "file": str(LOG_FILE)}
+    except Exception as e:
+        return {"error": str(e)}
