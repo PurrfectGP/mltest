@@ -2,9 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
 
-from backend.database import get_db
-from backend.db_models import User, PsychometricResponse
-from backend.schemas import (
+from database import get_db
+from db_models import User, PsychometricResponse
+from schemas import (
     PsychometricQuestion,
     QuestionOption,
     QuestionType,
@@ -12,7 +12,7 @@ from backend.schemas import (
     PsychometricQuestionsResponse,
     PsychometricResultResponse
 )
-from backend.auth import get_current_user
+from auth import get_current_user
 
 router = APIRouter(prefix="/api/psychometric", tags=["psychometric"])
 

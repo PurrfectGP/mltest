@@ -8,9 +8,9 @@ from jose import JWTError, jwt
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 
-from backend.database import get_db
-from backend.db_models import User
-from backend.schemas import TokenData
+from database import get_db
+from db_models import User
+from schemas import TokenData
 
 # Configuration
 SECRET_KEY = os.getenv("SECRET_KEY", "harmonia-secret-key-change-in-production")

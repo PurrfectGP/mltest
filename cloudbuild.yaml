@@ -1,0 +1,58 @@
+# Cloud Build configuration for Harmonia Phase 1
+# Builds and deploys both backend and frontend to Cloud Run
+
+steps:
+  # Build backend image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/harmonia-backend:$COMMIT_SHA'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/harmonia-backend:latest'
+      - './backend'
+    id: 'build-backend'
+
+  # Push backend image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'gcr.io/$PROJECT_ID/harmonia-backend:$COMMIT_SHA'
+    id: 'push-backend'
+    waitFor: ['build-backend']
+
+  # Deploy backend to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'harmonia-backend'
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/harmonia-backend:$COMMIT_SHA'
+      - '--region'
+      - '${_REGION}'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+      - '--memory'
+      - '2Gi'
+      - '--cpu'
+      - '2'
+      - '--timeout'
+      - '300'
+      - '--set-env-vars'
+      - 'SECRET_KEY=${_SECRET_KEY}'
+    id: 'deploy-backend'
+    waitFor: ['push-backend']
+
+substitutions:
+  _REGION: us-central1
+  _SECRET_KEY: change-this-in-production
+
+images:
+  - 'gcr.io/$PROJECT_ID/harmonia-backend:$COMMIT_SHA'
+  - 'gcr.io/$PROJECT_ID/harmonia-backend:latest'
+
+options:
+  logging: CLOUD_LOGGING_ONLY

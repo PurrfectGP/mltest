@@ -1,0 +1,13 @@
+# Ignore files for gcloud deploy
+.git
+.gitignore
+__pycache__
+*.pyc
+*.pyo
+.env
+.env.*
+*.md
+tests/
+.pytest_cache/
+.coverage
+htmlcov/

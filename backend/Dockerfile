@@ -1,3 +1,4 @@
+# Use Python slim image with PyTorch CPU
 FROM python:3.11-slim
 
 WORKDIR /app
@@ -6,20 +7,34 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
     libpq-dev \
     gcc \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements and install
+# Copy requirements first for caching
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+
+# Install Python dependencies (CPU-only torch for smaller image)
+RUN pip install --no-cache-dir --extra-index-url https://download.pytorch.org/whl/cpu \
+    torch==2.1.0+cpu \
+    torchvision==0.16.0+cpu \
+    && pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY . .
 
-# Create data directory
+# Create data directories
 RUN mkdir -p /app/data/profiles /app/data/global_calibration
 
-# Expose port
-EXPOSE 8000
+# Set environment variables
+ENV PORT=8080
+ENV DATA_DIR=/app/data
 
-# Run the application
-CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Expose port (Cloud Run uses 8080 by default)
+EXPOSE 8080
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8080/api/health || exit 1
+
+# Run with uvicorn
+CMD exec uvicorn main:app --host 0.0.0.0 --port ${PORT}
