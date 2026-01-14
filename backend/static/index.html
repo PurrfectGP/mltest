@@ -1,0 +1,996 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#6366f1">
+    <meta name="description" content="Harmonia Phase 1 - Visual Calibration">
+    <title>Harmonia - Visual Calibration</title>
+    <link rel="manifest" href="/static/manifest.json">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --secondary: #ec4899;
+            --background: #0f172a;
+            --surface: #1e293b;
+            --surface-light: #334155;
+            --text: #f8fafc;
+            --text-muted: #94a3b8;
+            --success: #22c55e;
+            --error: #ef4444;
+            --star-empty: #475569;
+            --star-filled: #fbbf24;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, var(--background) 0%, #1a1a2e 100%);
+            color: var(--text);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        .hidden { display: none !important; }
+
+        /* Container */
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+            padding: 2rem 1rem;
+            min-height: 100vh;
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            color: var(--text-muted);
+        }
+
+        /* Card */
+        .card {
+            background: var(--surface);
+            border-radius: 1rem;
+            padding: 2rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Form */
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+
+        .input {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            background: var(--surface-light);
+            border: 2px solid transparent;
+            border-radius: 0.5rem;
+            color: var(--text);
+            font-size: 1rem;
+            transition: border-color 0.2s;
+        }
+
+        .input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .input::placeholder {
+            color: var(--text-muted);
+        }
+
+        select.input {
+            cursor: pointer;
+        }
+
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            padding: 0.875rem 1.5rem;
+            border: none;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: var(--surface-light);
+            color: var(--text);
+        }
+
+        .btn-row {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .btn-row .btn {
+            flex: 1;
+        }
+
+        /* Links */
+        .link {
+            color: var(--primary);
+            cursor: pointer;
+            text-decoration: none;
+        }
+
+        .link:hover {
+            text-decoration: underline;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .mt-1 { margin-top: 1rem; }
+
+        /* Error/Success */
+        .error-msg {
+            color: var(--error);
+            font-size: 0.875rem;
+            margin-top: 0.5rem;
+        }
+
+        .success-msg {
+            color: var(--success);
+            font-size: 0.875rem;
+            margin-top: 0.5rem;
+        }
+
+        /* Progress Bar */
+        .progress-container {
+            margin-bottom: 1.5rem;
+        }
+
+        .progress-bar {
+            height: 6px;
+            background: var(--surface-light);
+            border-radius: 3px;
+            overflow: hidden;
+            margin-bottom: 0.5rem;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            transition: width 0.3s;
+        }
+
+        .progress-text {
+            color: var(--text-muted);
+            font-size: 0.875rem;
+            text-align: center;
+        }
+
+        /* Question Card */
+        .question-label {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            background: var(--primary);
+            color: white;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            border-radius: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .scenario {
+            color: var(--text-muted);
+            margin-bottom: 1.5rem;
+            padding: 1rem;
+            background: var(--surface-light);
+            border-radius: 0.5rem;
+            border-left: 3px solid var(--primary);
+            font-style: italic;
+        }
+
+        .question-text {
+            font-size: 1.125rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+        }
+
+        /* Options */
+        .options {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .option {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            padding: 1rem;
+            background: var(--surface-light);
+            border: 2px solid transparent;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            text-align: left;
+            color: var(--text);
+            transition: all 0.2s;
+        }
+
+        .option:hover {
+            background: #3d4a5c;
+        }
+
+        .option.selected {
+            border-color: var(--primary);
+            background: rgba(99, 102, 241, 0.15);
+        }
+
+        .option-indicator {
+            font-size: 1.25rem;
+            color: var(--primary);
+        }
+
+        /* Star Rating */
+        .star-rating {
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+            margin: 1rem 0;
+        }
+
+        .star {
+            font-size: 2.5rem;
+            cursor: pointer;
+            color: var(--star-empty);
+            transition: transform 0.15s, color 0.15s;
+            background: none;
+            border: none;
+            padding: 0;
+        }
+
+        .star:hover {
+            transform: scale(1.15);
+        }
+
+        .star.filled {
+            color: var(--star-filled);
+        }
+
+        .rating-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        /* Calibration Image */
+        .image-container {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 4/5;
+            background: var(--surface-light);
+            border-radius: 0.75rem;
+            overflow: hidden;
+            margin-bottom: 1rem;
+        }
+
+        .image-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        /* Complete Page */
+        .checkmark {
+            width: 100px;
+            height: 100px;
+            margin: 0 auto 2rem;
+        }
+
+        .checkmark svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .checkmark circle {
+            stroke: var(--success);
+            stroke-width: 2;
+            fill: none;
+        }
+
+        .checkmark path {
+            stroke: var(--success);
+            stroke-width: 3;
+            fill: none;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+            margin: 1.5rem 0;
+        }
+
+        .stat {
+            text-align: center;
+            padding: 1rem;
+            background: var(--surface-light);
+            border-radius: 0.5rem;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        .vector-preview {
+            background: var(--background);
+            padding: 1rem;
+            border-radius: 0.5rem;
+            font-family: monospace;
+            font-size: 0.875rem;
+            color: var(--primary);
+            overflow-x: auto;
+            margin: 1rem 0;
+        }
+
+        /* Loading */
+        .loading {
+            text-align: center;
+            padding: 3rem;
+            color: var(--text-muted);
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--surface-light);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- LOGIN PAGE -->
+        <div id="page-login">
+            <div class="header">
+                <h1>Welcome to Harmonia</h1>
+                <p>Sign in to continue your calibration</p>
+            </div>
+
+            <div class="card">
+                <form id="login-form">
+                    <div class="form-group">
+                        <label for="login-email">Email</label>
+                        <input type="email" id="login-email" class="input" placeholder="you@example.com" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="login-password">Password</label>
+                        <input type="password" id="login-password" class="input" placeholder="Your password" required>
+                    </div>
+
+                    <div id="login-error" class="error-msg hidden"></div>
+
+                    <button type="submit" class="btn btn-primary">Sign In</button>
+                </form>
+            </div>
+
+            <p class="text-center">
+                Don't have an account? <span class="link" onclick="showPage('signup')">Sign up</span>
+            </p>
+        </div>
+
+        <!-- SIGNUP PAGE -->
+        <div id="page-signup" class="hidden">
+            <div class="header">
+                <h1>Create Account</h1>
+                <p>Start your Phase 1 visual calibration</p>
+            </div>
+
+            <div class="card">
+                <form id="signup-form">
+                    <div class="form-group">
+                        <label for="signup-email">Email</label>
+                        <input type="email" id="signup-email" class="input" placeholder="you@example.com" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="signup-username">Username</label>
+                        <input type="text" id="signup-username" class="input" placeholder="Choose a username" minlength="3" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="signup-password">Password</label>
+                        <input type="password" id="signup-password" class="input" placeholder="At least 8 characters" minlength="8" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="signup-gender">Gender (Optional)</label>
+                        <select id="signup-gender" class="input">
+                            <option value="">Prefer not to say</option>
+                            <option value="male">Male</option>
+                            <option value="female">Female</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="signup-preference">Interested In (Optional)</label>
+                        <select id="signup-preference" class="input">
+                            <option value="">Prefer not to say</option>
+                            <option value="male">Male</option>
+                            <option value="female">Female</option>
+                            <option value="everyone">Everyone</option>
+                        </select>
+                    </div>
+
+                    <div id="signup-error" class="error-msg hidden"></div>
+
+                    <button type="submit" class="btn btn-primary">Create Account</button>
+                </form>
+            </div>
+
+            <p class="text-center">
+                Already have an account? <span class="link" onclick="showPage('login')">Sign in</span>
+            </p>
+        </div>
+
+        <!-- PSYCHOMETRIC PAGE -->
+        <div id="page-psychometric" class="hidden">
+            <div class="header">
+                <h1>The Fixed Five</h1>
+                <p>Answer honestly - there are no wrong answers</p>
+            </div>
+
+            <div class="progress-container">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="psych-progress" style="width: 20%"></div>
+                </div>
+                <div class="progress-text" id="psych-progress-text">Question 1 of 5</div>
+            </div>
+
+            <div class="card">
+                <span class="question-label" id="question-name">Loading...</span>
+                <div class="scenario" id="question-scenario"></div>
+                <div class="question-text" id="question-text"></div>
+                <div class="options" id="question-options"></div>
+            </div>
+
+            <div id="psych-error" class="error-msg hidden"></div>
+
+            <div class="btn-row">
+                <button class="btn btn-secondary" id="psych-prev" onclick="psychPrev()" disabled>Previous</button>
+                <button class="btn btn-primary" id="psych-next" onclick="psychNext()" disabled>Next</button>
+            </div>
+        </div>
+
+        <!-- CALIBRATION PAGE -->
+        <div id="page-calibration" class="hidden">
+            <div class="header">
+                <h1>Visual Calibration</h1>
+                <p>Rate each image (1-5 stars)</p>
+            </div>
+
+            <div class="progress-container">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="calib-progress" style="width: 10%"></div>
+                </div>
+                <div class="progress-text" id="calib-progress-text">Image 1 of 10</div>
+            </div>
+
+            <div class="card">
+                <div class="image-container">
+                    <img id="calib-image" src="" alt="Calibration image">
+                </div>
+
+                <p class="text-center">How attractive do you find this image?</p>
+
+                <div class="star-rating" id="star-rating">
+                    <button class="star" data-rating="1">&#9733;</button>
+                    <button class="star" data-rating="2">&#9733;</button>
+                    <button class="star" data-rating="3">&#9733;</button>
+                    <button class="star" data-rating="4">&#9733;</button>
+                    <button class="star" data-rating="5">&#9733;</button>
+                </div>
+
+                <div class="rating-labels">
+                    <span>Not at all</span>
+                    <span>Very attractive</span>
+                </div>
+            </div>
+
+            <div id="calib-error" class="error-msg hidden"></div>
+
+            <div class="btn-row">
+                <button class="btn btn-secondary" id="calib-prev" onclick="calibPrev()" disabled>Previous</button>
+                <button class="btn btn-primary" id="calib-next" onclick="calibNext()" disabled>Next</button>
+            </div>
+        </div>
+
+        <!-- COMPLETE PAGE -->
+        <div id="page-complete" class="hidden">
+            <div class="header">
+                <div class="checkmark">
+                    <svg viewBox="0 0 52 52">
+                        <circle cx="26" cy="26" r="25"/>
+                        <path d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
+                    </svg>
+                </div>
+                <h1 style="background: linear-gradient(135deg, var(--success) 0%, #34d399 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Phase 1 Complete!</h1>
+                <p>Your visual calibration has been processed</p>
+            </div>
+
+            <div class="card">
+                <h2 class="text-center" style="margin-bottom: 1rem;">Your Visual Profile</h2>
+
+                <div class="stats-grid">
+                    <div class="stat">
+                        <div class="stat-value" id="stat-images">0</div>
+                        <div class="stat-label">Images Rated</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value" id="stat-confidence">0%</div>
+                        <div class="stat-label">Confidence</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value" id="stat-dims">512</div>
+                        <div class="stat-label">Dimensions</div>
+                    </div>
+                </div>
+
+                <p style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: 1rem;">Embedding Vector Preview:</p>
+                <div class="vector-preview" id="vector-preview">[0.000, 0.000, 0.000, ...]</div>
+
+                <p style="color: var(--text-muted); font-size: 0.875rem;">
+                    Your personalized p1_visual_vector.json has been generated and saved.
+                </p>
+            </div>
+
+            <button class="btn btn-secondary" onclick="logout()">Sign Out</button>
+
+            <p class="text-center mt-1" style="color: var(--text-muted); font-size: 0.875rem;">
+                Phase 2 & 3 coming soon...
+            </p>
+        </div>
+
+        <!-- LOADING -->
+        <div id="page-loading" class="hidden">
+            <div class="loading">
+                <div class="spinner"></div>
+                <p>Loading...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==================== STATE ====================
+        const state = {
+            token: localStorage.getItem('harmonia_token'),
+            user: null,
+            // Psychometric
+            questions: [],
+            currentQuestion: 0,
+            answers: {},
+            // Calibration
+            images: [],
+            currentImage: 0,
+            ratings: {},
+            // Result
+            vector: null
+        };
+
+        // ==================== API ====================
+        const API_BASE = '/api';
+
+        async function api(endpoint, options = {}) {
+            const headers = {
+                'Content-Type': 'application/json',
+                ...options.headers
+            };
+
+            if (state.token) {
+                headers['Authorization'] = `Bearer ${state.token}`;
+            }
+
+            const response = await fetch(`${API_BASE}${endpoint}`, {
+                ...options,
+                headers
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.detail || 'Request failed');
+            }
+
+            return data;
+        }
+
+        // ==================== PAGE NAVIGATION ====================
+        function showPage(pageId) {
+            document.querySelectorAll('[id^="page-"]').forEach(page => {
+                page.classList.add('hidden');
+            });
+            document.getElementById(`page-${pageId}`).classList.remove('hidden');
+        }
+
+        // ==================== AUTH ====================
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const errorEl = document.getElementById('login-error');
+            errorEl.classList.add('hidden');
+
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+
+            try {
+                const data = await api('/auth/login', {
+                    method: 'POST',
+                    body: JSON.stringify({ email, password })
+                });
+
+                state.token = data.access_token;
+                state.user = data.user;
+                localStorage.setItem('harmonia_token', state.token);
+
+                navigateBasedOnProgress();
+            } catch (err) {
+                errorEl.textContent = err.message;
+                errorEl.classList.remove('hidden');
+            }
+        });
+
+        document.getElementById('signup-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const errorEl = document.getElementById('signup-error');
+            errorEl.classList.add('hidden');
+
+            const data = {
+                email: document.getElementById('signup-email').value,
+                username: document.getElementById('signup-username').value,
+                password: document.getElementById('signup-password').value,
+                gender: document.getElementById('signup-gender').value || null,
+                preference_target: document.getElementById('signup-preference').value || null
+            };
+
+            try {
+                const response = await api('/auth/register', {
+                    method: 'POST',
+                    body: JSON.stringify(data)
+                });
+
+                state.token = response.access_token;
+                state.user = response.user;
+                localStorage.setItem('harmonia_token', state.token);
+
+                navigateBasedOnProgress();
+            } catch (err) {
+                errorEl.textContent = err.message;
+                errorEl.classList.remove('hidden');
+            }
+        });
+
+        function logout() {
+            state.token = null;
+            state.user = null;
+            localStorage.removeItem('harmonia_token');
+            showPage('login');
+        }
+
+        // ==================== PSYCHOMETRIC ====================
+        async function loadQuestions() {
+            try {
+                const data = await api('/psychometric/questions');
+                state.questions = data.questions;
+                state.currentQuestion = 0;
+                renderQuestion();
+            } catch (err) {
+                console.error('Failed to load questions:', err);
+            }
+        }
+
+        function renderQuestion() {
+            const q = state.questions[state.currentQuestion];
+            if (!q) return;
+
+            document.getElementById('question-name').textContent = q.name;
+            document.getElementById('question-scenario').textContent = q.scenario;
+            document.getElementById('question-text').textContent = q.question;
+
+            // Progress
+            const progress = ((state.currentQuestion + 1) / state.questions.length) * 100;
+            document.getElementById('psych-progress').style.width = `${progress}%`;
+            document.getElementById('psych-progress-text').textContent =
+                `Question ${state.currentQuestion + 1} of ${state.questions.length}`;
+
+            // Options
+            const optionsEl = document.getElementById('question-options');
+            optionsEl.innerHTML = '';
+
+            q.options.forEach(opt => {
+                const div = document.createElement('div');
+                div.className = 'option' + (state.answers[q.id] === opt.id ? ' selected' : '');
+                div.innerHTML = `
+                    <span class="option-indicator">${state.answers[q.id] === opt.id ? '●' : '○'}</span>
+                    <span>${opt.text}</span>
+                `;
+                div.onclick = () => selectOption(q.id, opt.id);
+                optionsEl.appendChild(div);
+            });
+
+            // Buttons
+            document.getElementById('psych-prev').disabled = state.currentQuestion === 0;
+            document.getElementById('psych-next').disabled = !state.answers[q.id];
+            document.getElementById('psych-next').textContent =
+                state.currentQuestion === state.questions.length - 1 ? 'Complete' : 'Next';
+        }
+
+        function selectOption(questionId, optionId) {
+            state.answers[questionId] = optionId;
+            renderQuestion();
+        }
+
+        function psychPrev() {
+            if (state.currentQuestion > 0) {
+                state.currentQuestion--;
+                renderQuestion();
+            }
+        }
+
+        async function psychNext() {
+            const errorEl = document.getElementById('psych-error');
+            errorEl.classList.add('hidden');
+
+            if (state.currentQuestion < state.questions.length - 1) {
+                state.currentQuestion++;
+                renderQuestion();
+            } else {
+                // Submit all answers
+                try {
+                    const answers = Object.entries(state.answers).map(([question_id, selected_option_id]) => ({
+                        question_id,
+                        selected_option_id
+                    }));
+
+                    await api('/psychometric/submit', {
+                        method: 'POST',
+                        body: JSON.stringify({ answers })
+                    });
+
+                    state.user.psychometric_complete = true;
+                    loadCalibrationImages();
+                    showPage('calibration');
+                } catch (err) {
+                    errorEl.textContent = err.message;
+                    errorEl.classList.remove('hidden');
+                }
+            }
+        }
+
+        // ==================== CALIBRATION ====================
+        async function loadCalibrationImages() {
+            try {
+                const data = await api('/calibration/images?count=10');
+                state.images = data.images;
+                state.currentImage = 0;
+                state.ratings = {};
+                renderCalibration();
+            } catch (err) {
+                console.error('Failed to load images:', err);
+            }
+        }
+
+        function renderCalibration() {
+            const img = state.images[state.currentImage];
+            if (!img) return;
+
+            // Image
+            document.getElementById('calib-image').src = img.url;
+
+            // Progress
+            const progress = ((state.currentImage + 1) / state.images.length) * 100;
+            document.getElementById('calib-progress').style.width = `${progress}%`;
+            document.getElementById('calib-progress-text').textContent =
+                `Image ${state.currentImage + 1} of ${state.images.length}`;
+
+            // Stars
+            const rating = state.ratings[img.id] || 0;
+            document.querySelectorAll('#star-rating .star').forEach(star => {
+                const r = parseInt(star.dataset.rating);
+                star.classList.toggle('filled', r <= rating);
+            });
+
+            // Buttons
+            document.getElementById('calib-prev').disabled = state.currentImage === 0;
+            document.getElementById('calib-next').disabled = !state.ratings[img.id];
+            document.getElementById('calib-next').textContent =
+                state.currentImage === state.images.length - 1 ? 'Complete Calibration' : 'Next';
+        }
+
+        // Star click handlers
+        document.querySelectorAll('#star-rating .star').forEach(star => {
+            star.addEventListener('click', () => {
+                const rating = parseInt(star.dataset.rating);
+                const img = state.images[state.currentImage];
+                if (img) {
+                    state.ratings[img.id] = rating;
+                    renderCalibration();
+                }
+            });
+
+            star.addEventListener('mouseenter', () => {
+                const rating = parseInt(star.dataset.rating);
+                document.querySelectorAll('#star-rating .star').forEach(s => {
+                    const r = parseInt(s.dataset.rating);
+                    s.classList.toggle('filled', r <= rating);
+                });
+            });
+
+            star.addEventListener('mouseleave', () => {
+                renderCalibration();
+            });
+        });
+
+        function calibPrev() {
+            if (state.currentImage > 0) {
+                state.currentImage--;
+                renderCalibration();
+            }
+        }
+
+        async function calibNext() {
+            const errorEl = document.getElementById('calib-error');
+            errorEl.classList.add('hidden');
+
+            if (state.currentImage < state.images.length - 1) {
+                state.currentImage++;
+                renderCalibration();
+            } else {
+                // Submit calibration
+                try {
+                    showPage('loading');
+
+                    const vector = await api('/calibration/submit', {
+                        method: 'POST',
+                        body: JSON.stringify({ ratings: state.ratings })
+                    });
+
+                    state.vector = vector;
+                    state.user.calibration_complete = true;
+
+                    renderComplete();
+                    showPage('complete');
+                } catch (err) {
+                    showPage('calibration');
+                    errorEl.textContent = err.message;
+                    errorEl.classList.remove('hidden');
+                }
+            }
+        }
+
+        // ==================== COMPLETE ====================
+        function renderComplete() {
+            if (!state.vector) return;
+
+            const v = state.vector;
+            document.getElementById('stat-images').textContent = v.meta?.images_rated || 0;
+            document.getElementById('stat-confidence').textContent =
+                Math.round((v.preference_model?.calibration_confidence || 0) * 100) + '%';
+            document.getElementById('stat-dims').textContent =
+                v.self_analysis?.embedding_vector?.length || 512;
+
+            const embedding = v.self_analysis?.embedding_vector || [];
+            const preview = embedding.slice(0, 5).map(n => n.toFixed(3)).join(', ');
+            document.getElementById('vector-preview').textContent = `[${preview}, ...]`;
+        }
+
+        // ==================== NAVIGATION ====================
+        function navigateBasedOnProgress() {
+            if (!state.user) {
+                showPage('login');
+                return;
+            }
+
+            if (!state.user.psychometric_complete) {
+                loadQuestions();
+                showPage('psychometric');
+            } else if (!state.user.calibration_complete) {
+                loadCalibrationImages();
+                showPage('calibration');
+            } else {
+                loadVector();
+            }
+        }
+
+        async function loadVector() {
+            try {
+                state.vector = await api('/calibration/vector');
+                renderComplete();
+                showPage('complete');
+            } catch (err) {
+                showPage('complete');
+            }
+        }
+
+        // ==================== INIT ====================
+        async function init() {
+            if (state.token) {
+                try {
+                    showPage('loading');
+                    state.user = await api('/auth/me');
+                    navigateBasedOnProgress();
+                } catch (err) {
+                    // Token invalid
+                    state.token = null;
+                    localStorage.removeItem('harmonia_token');
+                    showPage('login');
+                }
+            } else {
+                showPage('login');
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>

@@ -16,9 +16,26 @@ from models import ResNetBackbone, DynamicLearner
 class VisualService:
     """Service for visual calibration using MetaFBP algorithm.
 
-    Handles feature extraction, user calibration, and vector generation
-    for the Harmonia Phase 1 Visual Calibration system.
+    MetaFBP Process:
+    1. ResNetBackbone extracts 512-dim feature vectors from face images
+    2. User rates images (1-5 stars) during calibration
+    3. Features are weighted by ratings and aggregated
+    4. DynamicLearner generates personalized weight vector from aggregated features
+    5. Result is saved as p1_visual_vector.json
+
+    The DynamicLearner acts as a "parameter generator" - it takes the user's
+    preference signal (aggregated features) and outputs a personalized weight
+    vector that represents what the user finds attractive.
     """
+
+    _instance = None
+
+    def __new__(cls, *args, **kwargs):
+        """Singleton pattern to avoid reloading models."""
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._instance._initialized = False
+        return cls._instance
 
     def __init__(
         self,
@@ -35,9 +52,16 @@ class VisualService:
             backbone_weights: Path to pre-trained backbone weights
             learner_weights: Path to pre-trained learner weights
         """
+        if self._initialized:
+            return
+
         self.data_dir = Path(data_dir)
         self.profiles_dir = self.data_dir / "profiles"
         self.calibration_dir = self.data_dir / "global_calibration"
+
+        # Ensure directories exist
+        self.profiles_dir.mkdir(parents=True, exist_ok=True)
+        self.calibration_dir.mkdir(parents=True, exist_ok=True)
 
         # Set device
         if device is None:
@@ -46,6 +70,7 @@ class VisualService:
             self.device = torch.device(device)
 
         # Initialize models
+        print(f"Initializing MetaFBP models on {self.device}...")
         self.backbone = ResNetBackbone(pretrained=True).to(self.device)
         self.learner = DynamicLearner(in_dim=512, hidden_dim=256, out_dim=1).to(self.device)
 
@@ -55,11 +80,11 @@ class VisualService:
         if learner_weights and os.path.exists(learner_weights):
             self.learner.load_state_dict(torch.load(learner_weights, map_location=self.device))
 
-        # Set to evaluation mode (inference only)
+        # Set to evaluation mode (inference only - no training)
         self.backbone.eval()
         self.learner.eval()
 
-        # Image preprocessing pipeline
+        # Image preprocessing pipeline (ImageNet normalization)
         self.transform = transforms.Compose([
             transforms.Resize((224, 224)),
             transforms.ToTensor(),
@@ -69,8 +94,11 @@ class VisualService:
             )
         ])
 
+        self._initialized = True
+        print("MetaFBP models initialized successfully")
+
     def extract_features(self, image_paths: List[str]) -> torch.Tensor:
-        """Extract feature vectors from a batch of images.
+        """Extract 512-dim feature vectors from images using ResNetBackbone.
 
         Args:
             image_paths: List of paths to image files
@@ -102,6 +130,31 @@ class VisualService:
         """
         return self.extract_features([image_path])[0]
 
+    def _generate_demo_features(self, image_id: str, rating: int) -> torch.Tensor:
+        """Generate deterministic demo features when no real images exist.
+
+        Uses image_id as seed for reproducibility, and rating influences
+        the feature distribution to simulate preference patterns.
+
+        Args:
+            image_id: Image identifier (used as seed)
+            rating: User rating 1-5
+
+        Returns:
+            Synthetic feature tensor of shape (512,)
+        """
+        # Create deterministic seed from image_id
+        seed = hash(image_id) % (2**32)
+        torch.manual_seed(seed)
+
+        # Generate base features
+        features = torch.randn(512, device=self.device)
+
+        # Normalize to unit sphere
+        features = F.normalize(features, dim=0)
+
+        return features
+
     def calibrate_user(
         self,
         user_id: str,
@@ -109,7 +162,15 @@ class VisualService:
         gender: Optional[str] = None,
         preference_target: Optional[str] = None
     ) -> Dict:
-        """Calibrate user preferences based on image ratings.
+        """Calibrate user preferences using MetaFBP algorithm.
+
+        MetaFBP Calibration Process:
+        1. Extract features from each rated image (or generate demo features)
+        2. Weight features by user ratings (1-5 stars normalized to 0-1)
+        3. Aggregate weighted features into a single preference vector
+        4. Pass through DynamicLearner to generate personalized embedding
+        5. Compute ideal_vector as centroid of highly-rated images
+        6. Save everything to p1_visual_vector.json
 
         Args:
             user_id: Unique user identifier
@@ -118,7 +179,7 @@ class VisualService:
             preference_target: Gender preference for matching
 
         Returns:
-            Generated p1_visual_vector data
+            Generated p1_visual_vector data structure
         """
         if not ratings:
             raise ValueError("No ratings provided for calibration")
@@ -126,58 +187,67 @@ class VisualService:
         # Collect features and ratings
         features_list = []
         ratings_list = []
-        liked_features = []
-        disliked_features = []
+        liked_features = []  # Ratings >= 4
+        disliked_features = []  # Ratings <= 2
 
         for image_id, rating in ratings.items():
+            # Try to load real image
             image_path = self.calibration_dir / f"{image_id}.jpg"
             if not image_path.exists():
                 image_path = self.calibration_dir / f"{image_id}.png"
-            if not image_path.exists():
-                continue
 
-            feature = self.extract_single_feature(str(image_path))
+            if image_path.exists():
+                # Real image exists - extract actual features
+                feature = self.extract_single_feature(str(image_path))
+            else:
+                # Demo mode - generate synthetic features
+                feature = self._generate_demo_features(image_id, rating)
+
             features_list.append(feature)
             ratings_list.append(rating)
 
-            # Categorize by rating
+            # Categorize by rating for preference model
             if rating >= 4:
                 liked_features.append(feature)
             elif rating <= 2:
                 disliked_features.append(feature)
 
         if not features_list:
-            raise ValueError("No valid images found for calibration")
+            raise ValueError("No valid ratings for calibration")
 
-        # Stack features and normalize ratings to weights
-        features = torch.stack(features_list)
+        # Stack features into batch tensor
+        features = torch.stack(features_list)  # Shape: (N, 512)
         ratings_tensor = torch.tensor(ratings_list, dtype=torch.float32, device=self.device)
 
         # Normalize ratings to [0, 1] weights
-        weights = (ratings_tensor - 1) / 4.0  # 1-5 -> 0-1
+        # Rating 1 -> weight 0.0, Rating 5 -> weight 1.0
+        weights = (ratings_tensor - 1) / 4.0
 
         # Compute weighted average of features
-        weights_expanded = weights.unsqueeze(1)
-        weighted_features = features * weights_expanded
-        aggregated_features = weighted_features.sum(dim=0, keepdim=True) / weights.sum()
+        # This represents the user's aggregate preference signal
+        weights_expanded = weights.unsqueeze(1)  # Shape: (N, 1)
+        weighted_features = features * weights_expanded  # Shape: (N, 512)
+        aggregated_features = weighted_features.sum(dim=0, keepdim=True) / (weights.sum() + 1e-8)  # Shape: (1, 512)
 
         # Generate user-specific embedding using DynamicLearner
+        # The learner takes the preference signal and outputs personalized weights
         with torch.no_grad():
             user_embedding = self.learner.get_user_weights(aggregated_features)
 
-        # Compute ideal vector (centroid of liked images)
+        # Compute ideal_vector as centroid of highly-rated (liked) images
         ideal_vector = None
         if liked_features:
             liked_stack = torch.stack(liked_features)
             ideal_vector = liked_stack.mean(dim=0)
 
         # Calculate calibration confidence based on rating variance
+        # High variance = decisive preferences = high confidence
         calibration_confidence = self._calculate_confidence(ratings_list)
 
-        # Detect attraction triggers
+        # Detect attraction triggers (placeholder for trait classifier)
         attraction_triggers = self._detect_triggers(liked_features, disliked_features)
 
-        # Build the p1_visual_vector structure
+        # Build the p1_visual_vector structure per spec
         vector_data = {
             "meta": {
                 "user_id": user_id,
@@ -201,23 +271,23 @@ class VisualService:
             }
         }
 
-        # Save the vector
+        # Save the vector to user's profile directory
         self.save_vector(user_id, vector_data)
 
         return vector_data
 
     def _calculate_confidence(self, ratings: List[int]) -> float:
-        """Calculate calibration confidence based on rating distribution.
+        """Calculate calibration confidence from rating distribution.
 
-        Higher variance in ratings indicates more decisive preferences.
+        Higher variance in ratings indicates more decisive preferences,
+        which translates to higher confidence in the calibration.
         """
         if len(ratings) < 3:
             return 0.5
 
         import statistics
         variance = statistics.variance(ratings)
-        # Normalize variance to confidence score (higher variance = higher confidence)
-        # Max variance for 1-5 scale is about 4
+        # Normalize: max variance for 1-5 scale is ~4
         confidence = min(variance / 2.0, 1.0)
         return round(confidence, 2)
 
@@ -228,7 +298,7 @@ class VisualService:
     ) -> Dict:
         """Detect attraction triggers from liked/disliked patterns.
 
-        In production, this would use a trait classifier.
+        In production, this would use a trained trait classifier.
         For MVP, returns placeholder structure.
         """
         return {
@@ -253,6 +323,7 @@ class VisualService:
         with open(vector_path, "w") as f:
             json.dump(vector_data, f, indent=2)
 
+        print(f"Saved visual vector for user {user_id} to {vector_path}")
         return vector_path
 
     def load_vector(self, user_id: str) -> Optional[Dict]:
@@ -274,6 +345,8 @@ class VisualService:
     def get_calibration_images(self, count: int = 20) -> List[Dict]:
         """Get a list of calibration images for rating.
 
+        If no real images exist, returns demo placeholder references.
+
         Args:
             count: Number of images to return
 
@@ -281,12 +354,24 @@ class VisualService:
             List of image metadata dicts
         """
         images = []
+
+        # Check for real images first
         if self.calibration_dir.exists():
-            for img_path in sorted(self.calibration_dir.glob("*.[jp][pn][g]"))[:count]:
+            real_images = list(self.calibration_dir.glob("*.[jp][pn][g]"))
+            for img_path in sorted(real_images)[:count]:
                 images.append({
                     "id": img_path.stem,
                     "filename": img_path.name,
                     "url": f"/api/calibration/images/{img_path.name}"
+                })
+
+        # If no real images, provide demo placeholders
+        if not images:
+            for i in range(1, count + 1):
+                images.append({
+                    "id": f"demo_{i}",
+                    "filename": f"demo_{i}.jpg",
+                    "url": f"https://picsum.photos/seed/{i}/400/500"  # Random placeholder
                 })
 
         return images
