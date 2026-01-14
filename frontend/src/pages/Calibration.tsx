@@ -27,14 +27,18 @@ export default function Calibration() {
     }
   }, [user, navigate])
 
-  // Generate reliable placeholder URL using placehold.co
-  const getPlaceholderUrl = (index: number): string => {
-    const colors = [
-      "E8B4B8", "A8D5E5", "B8E8B4", "E8D4B4", "D4B4E8",
-      "B4E8E8", "E8E8B4", "B4B8E8", "E8B4D4", "C4E8B4"
-    ]
-    const color = colors[index % colors.length]
-    return `https://placehold.co/400x500/${color}/333333?text=Image+${index + 1}`
+  // Unsplash portrait photo IDs for fallback (matches backend)
+  const unsplashPortraits = [
+    "rDEOVtE7vOs", "mEZ3PoFGs_k", "sibVwORYqs0", "d2MSDujJl2g",
+    "6W4F62sN_yI", "QXevDflbl8A", "IF9TK5Uy-KI", "WNoLnJo7tS8",
+    "MTZTGvDsHFY", "7YVZYZeITc8", "ILip77SbmOE", "C8Ta0gwPbQg",
+    "B4TjXnI0Y2c", "pAs4IM6OGWI", "d1UPkiFd04A", "2EGNqazbAMk",
+    "y4Y-JK7hwmI", "ZHvM3XIOHoE", "WMD64tMfc4k", "X6Uj51n5CE8"
+  ]
+
+  const getUnsplashUrl = (index: number): string => {
+    const photoId = unsplashPortraits[index % unsplashPortraits.length]
+    return `https://images.unsplash.com/photo-${photoId}?w=400&h=500&fit=crop&crop=faces`
   }
 
   // Load calibration images
@@ -44,22 +48,22 @@ export default function Calibration() {
       try {
         const data = await api.getCalibrationImages(token, 20)
         if (data.images.length === 0) {
-          // Generate placeholder images if none exist
-          const placeholders: CalibrationImage[] = Array.from({ length: 10 }, (_, i) => ({
-            id: `placeholder_${i + 1}`,
-            filename: `placeholder_${i + 1}.jpg`,
-            url: getPlaceholderUrl(i)
+          // Generate Unsplash portrait images if none exist
+          const placeholders: CalibrationImage[] = Array.from({ length: 20 }, (_, i) => ({
+            id: `unsplash_${i + 1}`,
+            filename: `unsplash_${i + 1}.jpg`,
+            url: getUnsplashUrl(i)
           }))
           setImages(placeholders)
         } else {
           setImages(data.images)
         }
       } catch (err) {
-        // Use placeholder images on error
-        const placeholders: CalibrationImage[] = Array.from({ length: 10 }, (_, i) => ({
-          id: `placeholder_${i + 1}`,
-          filename: `placeholder_${i + 1}.jpg`,
-          url: getPlaceholderUrl(i)
+        // Use Unsplash portraits on error
+        const placeholders: CalibrationImage[] = Array.from({ length: 20 }, (_, i) => ({
+          id: `unsplash_${i + 1}`,
+          filename: `unsplash_${i + 1}.jpg`,
+          url: getUnsplashUrl(i)
         }))
         setImages(placeholders)
         console.error(err)
@@ -160,8 +164,8 @@ export default function Calibration() {
               src={currentImage.url}
               alt={`Calibration image ${currentIndex + 1}`}
               onError={(e) => {
-                // Use reliable placeholder on error
-                e.currentTarget.src = getPlaceholderUrl(currentIndex)
+                // Use Unsplash portrait on error
+                e.currentTarget.src = getUnsplashUrl(currentIndex)
               }}
             />
           </div>

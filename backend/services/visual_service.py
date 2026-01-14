@@ -365,22 +365,22 @@ class VisualService:
                     "url": f"/api/calibration/images/{img_path.name}"
                 })
 
-        # If no real images, provide demo placeholders
-        # Using placehold.co for more reliable placeholder images
+        # If no real images, use Unsplash portrait photos (free, no API key needed)
         if not images:
-            # Generate varied placeholder colors for visual variety
-            colors = [
-                "E8B4B8", "A8D5E5", "B8E8B4", "E8D4B4", "D4B4E8",
-                "B4E8E8", "E8E8B4", "B4B8E8", "E8B4D4", "C4E8B4",
-                "B4D4E8", "E8C4B4", "D4E8B4", "B4E8D4", "E8B4E8",
-                "C4B4E8", "E8D4D4", "D4D4E8", "B4E8C4", "E8C4D4"
+            # Curated portrait photo IDs from Unsplash
+            unsplash_portraits = [
+                "rDEOVtE7vOs", "mEZ3PoFGs_k", "sibVwORYqs0", "d2MSDujJl2g",
+                "6W4F62sN_yI", "QXevDflbl8A", "IF9TK5Uy-KI", "WNoLnJo7tS8",
+                "MTZTGvDsHFY", "7YVZYZeITc8", "ILip77SbmOE", "C8Ta0gwPbQg",
+                "B4TjXnI0Y2c", "pAs4IM6OGWI", "d1UPkiFd04A", "2EGNqazbAMk",
+                "y4Y-JK7hwmI", "ZHvM3XIOHoE", "WMD64tMfc4k", "X6Uj51n5CE8"
             ]
-            for i in range(1, count + 1):
-                color = colors[(i - 1) % len(colors)]
+            for i in range(min(count, len(unsplash_portraits))):
+                photo_id = unsplash_portraits[i]
                 images.append({
-                    "id": f"demo_{i}",
-                    "filename": f"demo_{i}.jpg",
-                    "url": f"https://placehold.co/400x500/{color}/333333?text=Image+{i}"
+                    "id": f"unsplash_{i + 1}",
+                    "filename": f"unsplash_{i + 1}.jpg",
+                    "url": f"https://images.unsplash.com/photo-{photo_id}?w=400&h=500&fit=crop&crop=faces"
                 })
 
         return images
