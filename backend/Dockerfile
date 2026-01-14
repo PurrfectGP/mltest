@@ -3,11 +3,10 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install system dependencies (including those needed for bcrypt and cryptography)
+# Install system dependencies (for pwdlib/argon2, cryptography, and other packages)
 RUN apt-get update && apt-get install -y \
     libpq-dev \
     gcc \
-    g++ \
     curl \
     libffi-dev \
     libssl-dev \
@@ -25,12 +24,13 @@ RUN pip install --no-cache-dir --extra-index-url https://download.pytorch.org/wh
 # Copy application code
 COPY . .
 
-# Create data directories
-RUN mkdir -p /app/data/profiles /app/data/global_calibration
+# Create data directories (including logs)
+RUN mkdir -p /app/data/profiles /app/data/global_calibration /app/data/logs
 
 # Set environment variables
 ENV PORT=8080
 ENV DATA_DIR=/app/data
+ENV DEBUG=true
 
 # Expose port (Cloud Run uses 8080 by default)
 EXPOSE 8080

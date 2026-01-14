@@ -2,7 +2,7 @@ import json
 import os
 from pathlib import Path
 from typing import Dict, List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 import uuid
 
 import torch
@@ -253,7 +253,7 @@ class VisualService:
                 "user_id": user_id,
                 "gender": gender or "unspecified",
                 "preference_target": preference_target or "unspecified",
-                "calibration_timestamp": datetime.utcnow().isoformat() + "Z",
+                "calibration_timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
                 "images_rated": len(ratings)
             },
             "self_analysis": {
