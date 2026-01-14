@@ -1,0 +1,136 @@
+.psychometric-page {
+  min-height: 100vh;
+  padding: 2rem;
+  background: linear-gradient(135deg, var(--background) 0%, #1a1a2e 100%);
+}
+
+.psychometric-container {
+  max-width: 700px;
+  margin: 0 auto;
+}
+
+.psychometric-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.psychometric-header h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.subtitle {
+  color: var(--text-muted);
+  margin-bottom: 1.5rem;
+}
+
+.progress-bar {
+  height: 6px;
+  background: var(--surface-light);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 0.5rem;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%);
+  transition: width 0.3s ease;
+}
+
+.progress-text {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.question-card {
+  background: var(--surface);
+  border-radius: 1rem;
+  padding: 2rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+}
+
+.question-label {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  background: var(--primary);
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  border-radius: 1rem;
+  margin-bottom: 1rem;
+}
+
+.scenario {
+  color: var(--text-muted);
+  margin-bottom: 1.5rem;
+  line-height: 1.7;
+  font-style: italic;
+  padding: 1rem;
+  background: var(--surface-light);
+  border-radius: 0.5rem;
+  border-left: 3px solid var(--primary);
+}
+
+.question-text {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 1.5rem;
+}
+
+.options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.option {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: var(--surface-light);
+  border: 2px solid transparent;
+  border-radius: 0.5rem;
+  text-align: left;
+  color: var(--text);
+  transition: all 0.2s ease;
+}
+
+.option:hover {
+  background: #3d4a5c;
+}
+
+.option--selected {
+  border-color: var(--primary);
+  background: rgba(99, 102, 241, 0.1);
+}
+
+.option-indicator {
+  font-size: 1.25rem;
+  color: var(--primary);
+  flex-shrink: 0;
+}
+
+.option-text {
+  line-height: 1.5;
+}
+
+.navigation {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.loading, .error {
+  text-align: center;
+  padding: 4rem;
+  color: var(--text-muted);
+}
