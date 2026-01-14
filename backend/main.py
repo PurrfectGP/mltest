@@ -103,6 +103,11 @@ app.include_router(psychometric_router)
 # Serve static files (frontend)
 STATIC_DIR = Path(__file__).parent / "static"
 if STATIC_DIR.exists():
+    # Serve assets at /assets path (matches Vite build output)
+    assets_dir = STATIC_DIR / "assets"
+    if assets_dir.exists():
+        app.mount("/assets", StaticFiles(directory=str(assets_dir)), name="assets")
+    # Serve other static files at root
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 
@@ -115,6 +120,31 @@ async def serve_frontend():
     if index_path.exists():
         return FileResponse(index_path)
     return {"message": "Harmonia Phase 1 API", "docs": "/docs"}
+
+
+@app.get("/manifest.webmanifest")
+async def serve_manifest():
+    return FileResponse(STATIC_DIR / "manifest.webmanifest", media_type="application/manifest+json")
+
+
+@app.get("/vite.svg")
+async def serve_vite_svg():
+    return FileResponse(STATIC_DIR / "vite.svg", media_type="image/svg+xml")
+
+
+@app.get("/registerSW.js")
+async def serve_register_sw():
+    return FileResponse(STATIC_DIR / "registerSW.js", media_type="application/javascript")
+
+
+@app.get("/sw.js")
+async def serve_sw():
+    return FileResponse(STATIC_DIR / "sw.js", media_type="application/javascript")
+
+
+@app.get("/workbox-{filename}")
+async def serve_workbox(filename: str):
+    return FileResponse(STATIC_DIR / f"workbox-{filename}", media_type="application/javascript")
 
 
 # ==================== API ENDPOINTS ====================
@@ -342,3 +372,17 @@ async def download_profile(
         media_type="application/json",
         headers={"Content-Disposition": f"attachment; filename=harmonia_profile_{current_user.id}.json"}
     )
+
+
+# ==================== SPA CATCH-ALL (must be last) ====================
+
+@app.get("/{full_path:path}")
+async def spa_catch_all(full_path: str):
+    """Catch-all route for SPA - serves index.html for client-side routing."""
+    # Don't catch API routes
+    if full_path.startswith("api/"):
+        raise HTTPException(status_code=404, detail="Not found")
+    index_path = STATIC_DIR / "index.html"
+    if index_path.exists():
+        return FileResponse(index_path)
+    raise HTTPException(status_code=404, detail="Not found")
