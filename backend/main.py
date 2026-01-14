@@ -6,6 +6,8 @@ from typing import List
 
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from database import init_db, get_db
@@ -38,11 +40,29 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include routers
+# Include API routers
 app.include_router(auth_router)
 app.include_router(calibration_router)
 app.include_router(psychometric_router)
 
+# Serve static files (frontend)
+STATIC_DIR = Path(__file__).parent / "static"
+if STATIC_DIR.exists():
+    app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+
+
+# ==================== ROOT & FRONTEND ====================
+
+@app.get("/")
+async def serve_frontend():
+    """Serve the main frontend application."""
+    index_path = STATIC_DIR / "index.html"
+    if index_path.exists():
+        return FileResponse(index_path)
+    return {"message": "Harmonia Phase 1 API", "docs": "/docs"}
+
+
+# ==================== API ENDPOINTS ====================
 
 @app.get("/api/health")
 async def health_check():
@@ -65,7 +85,7 @@ async def get_status():
     }
 
 
-# ============ ADMIN/DEBUG ENDPOINTS ============
+# ==================== ADMIN/DEBUG ENDPOINTS ====================
 
 @app.get("/api/admin/users")
 async def list_users(db: Session = Depends(get_db)):

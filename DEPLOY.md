@@ -1,250 +1,262 @@
 # Harmonia Phase 1 - Google Cloud Deployment Guide
 
-## Prerequisites
+## Overview
 
-1. Google Cloud account with billing enabled
-2. `gcloud` CLI installed and authenticated
-3. A GCP project created
+This is a **single deployment** - the backend serves both the API and the frontend UI.
+Once deployed, you get a URL that shows the full app with signup, login, psychometric questions, and visual calibration.
 
-## Quick Deploy (5 minutes)
+---
 
-### Step 1: Set up your project
+## Deploy via Google Cloud Console (No CLI Required)
 
-```bash
-# Set your project ID
-export PROJECT_ID="your-project-id"
-gcloud config set project $PROJECT_ID
+### Step 1: Open Google Cloud Console
 
-# Enable required APIs
-gcloud services enable cloudbuild.googleapis.com
-gcloud services enable run.googleapis.com
-gcloud services enable containerregistry.googleapis.com
+1. Go to https://console.cloud.google.com
+2. Create a new project or select an existing one
+3. Make sure billing is enabled for the project
+
+### Step 2: Enable Cloud Run
+
+1. In the search bar at the top, type **"Cloud Run"**
+2. Click on **Cloud Run** in the results
+3. If prompted, click **"Enable API"**
+
+### Step 3: Create the Service
+
+1. Click **"Create Service"**
+2. Select **"Continuously deploy from a repository (source or Dockerfile)"**
+3. Click **"Set up with Cloud Build"**
+
+### Step 4: Connect Your Repository
+
+1. If not connected, click **"Authenticate"** to connect your GitHub account
+2. Select repository: **`PurrfectGP/mltest`**
+3. Select branch: **`claude/read-instructions-prompt-0lCcW`**
+
+### Step 5: Configure Build
+
+1. **Build Type**: Select **"Dockerfile"**
+2. **Source location**: Enter **`/backend/Dockerfile`**
+3. Click **"Save"**
+
+### Step 6: Configure Service Settings
+
+| Setting | Value |
+|---------|-------|
+| Service name | `harmonia-phase1` |
+| Region | `us-central1` (or closest to you) |
+| CPU allocation | "CPU is only allocated during request processing" |
+| Minimum instances | `0` |
+| Maximum instances | `10` |
+| Memory | **`2 GiB`** (important for PyTorch) |
+| CPU | `2` |
+| Request timeout | `300` seconds |
+| **Authentication** | **Allow unauthenticated invocations** (check this!) |
+
+### Step 7: Deploy
+
+1. Click **"Create"**
+2. Wait 5-10 minutes for the build to complete
+3. Once done, you'll see a URL like: `https://harmonia-phase1-xxxxx-uc.a.run.app`
+
+---
+
+## Using the App
+
+### Access the Frontend
+
+Open your service URL in a browser:
+```
+https://harmonia-phase1-xxxxx-uc.a.run.app
 ```
 
-### Step 2: Deploy the backend
+You'll see the **Harmonia login page**. From here you can:
 
-```bash
-# Navigate to the project directory
-cd /path/to/mltest
+1. **Sign Up** - Create a new account
+2. **Answer Fixed Five Questions** - 5 psychometric scenarios
+3. **Rate Images** - Visual calibration with 1-5 stars
+4. **View Results** - See your generated embedding vector
 
-# Build and deploy using Cloud Build
-gcloud builds submit --config=cloudbuild.yaml
+### The Complete User Flow
 
-# Or deploy directly to Cloud Run
-cd backend
-gcloud run deploy harmonia-backend \
-  --source . \
-  --region us-central1 \
-  --platform managed \
-  --allow-unauthenticated \
-  --memory 2Gi \
-  --cpu 2 \
-  --timeout 300
+```
+Sign Up → Fixed Five Questions → Image Rating → Profile Complete!
+   │              │                    │              │
+   │              │                    │              └─► p1_visual_vector.json saved
+   │              │                    │
+   │              │                    └─► MetaFBP processes ratings
+   │              │                        Generates 512-dim embedding
+   │              │
+   │              └─► 5 scenario-based questions
+   │                  Extracts personality traits
+   │
+   └─► Creates user account with UUID
 ```
 
-### Step 3: Get your service URL
+---
 
-```bash
-# Get the deployed URL
-gcloud run services describe harmonia-backend \
-  --region us-central1 \
-  --format 'value(status.url)'
-```
+## Check if Profiles Were Created
 
-This will output something like: `https://harmonia-backend-xxxxx-uc.a.run.app`
+### Via Browser (Easy)
 
-## Testing the Deployment
+Open these URLs in your browser:
 
-### 1. Health Check
-```bash
-curl https://YOUR_SERVICE_URL/api/health
-# Expected: {"status":"healthy","service":"harmonia-phase1"}
-```
+| URL | What It Shows |
+|-----|---------------|
+| `YOUR_URL/api/admin/users` | All registered users |
+| `YOUR_URL/api/admin/profiles` | All generated p1_visual_vector.json files |
+| `YOUR_URL/api/admin/profiles/USER_ID` | Specific user's full vector data |
+| `YOUR_URL/api/health` | Health check |
+| `YOUR_URL/docs` | Interactive API documentation (Swagger) |
 
-### 2. Check Status
-```bash
-curl https://YOUR_SERVICE_URL/api/status
-```
+### Example Response: `/api/admin/profiles`
 
-### 3. View API Documentation
-Open in browser: `https://YOUR_SERVICE_URL/docs`
-
-## Using the API (Testing Flow)
-
-### 1. Register a User
-```bash
-curl -X POST https://YOUR_SERVICE_URL/api/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "test@example.com",
-    "username": "testuser",
-    "password": "password123",
-    "gender": "male",
-    "preference_target": "female"
-  }'
-```
-Save the `access_token` from the response.
-
-### 2. Get Psychometric Questions
-```bash
-curl https://YOUR_SERVICE_URL/api/psychometric/questions \
-  -H "Authorization: Bearer YOUR_TOKEN"
-```
-
-### 3. Submit Psychometric Answers
-```bash
-curl -X POST https://YOUR_SERVICE_URL/api/psychometric/submit \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_TOKEN" \
-  -d '{
-    "answers": [
-      {"question_id": "dinner_check", "selected_option_id": "dc_a"},
-      {"question_id": "tech_meltdown", "selected_option_id": "tm_a"},
-      {"question_id": "found_wallet", "selected_option_id": "fw_a"},
-      {"question_id": "restaurant_choice", "selected_option_id": "rc_c"},
-      {"question_id": "spontaneous_trip", "selected_option_id": "st_a"}
-    ]
-  }'
-```
-
-### 4. Submit Calibration Ratings
-```bash
-curl -X POST https://YOUR_SERVICE_URL/api/calibration/submit \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_TOKEN" \
-  -d '{
-    "ratings": {
-      "placeholder_1": 5,
-      "placeholder_2": 4,
-      "placeholder_3": 2,
-      "placeholder_4": 5,
-      "placeholder_5": 3
+```json
+{
+  "profiles_dir": "/app/data/profiles",
+  "total": 1,
+  "profiles": [
+    {
+      "user_id": "550e8400-e29b-41d4-a716-446655440000",
+      "has_vector": true,
+      "vector_summary": {
+        "images_rated": 10,
+        "embedding_dim": 512,
+        "calibration_confidence": 0.75,
+        "timestamp": "2024-01-14T12:00:00Z"
+      }
     }
-  }'
+  ]
+}
 ```
 
-## Checking if Profiles Were Created
+### Example Response: `/api/admin/profiles/{user_id}`
 
-### List All Users
-```bash
-curl https://YOUR_SERVICE_URL/api/admin/users
-```
-
-### List All Profiles
-```bash
-curl https://YOUR_SERVICE_URL/api/admin/profiles
-```
-
-### Get Specific Profile Detail
-```bash
-curl https://YOUR_SERVICE_URL/api/admin/profiles/USER_ID
-```
-
-### Check Database Info
-```bash
-curl https://YOUR_SERVICE_URL/api/admin/db-info
-```
-
-## Example: Full Test Script
-
-Save this as `test_deployment.sh`:
-
-```bash
-#!/bin/bash
-BASE_URL="${1:-https://harmonia-backend-xxxxx-uc.a.run.app}"
-
-echo "=== Testing Harmonia API at $BASE_URL ==="
-
-# Health check
-echo -e "\n1. Health Check:"
-curl -s "$BASE_URL/api/health" | jq .
-
-# Register user
-echo -e "\n2. Registering user..."
-RESPONSE=$(curl -s -X POST "$BASE_URL/api/auth/register" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "test'$(date +%s)'@example.com",
-    "username": "testuser'$(date +%s)'",
-    "password": "password123"
-  }')
-echo "$RESPONSE" | jq .
-
-TOKEN=$(echo "$RESPONSE" | jq -r '.access_token')
-echo "Token: ${TOKEN:0:50}..."
-
-# Submit psychometric
-echo -e "\n3. Submitting psychometric answers..."
-curl -s -X POST "$BASE_URL/api/psychometric/submit" \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $TOKEN" \
-  -d '{
-    "answers": [
-      {"question_id": "dinner_check", "selected_option_id": "dc_a"},
-      {"question_id": "tech_meltdown", "selected_option_id": "tm_a"},
-      {"question_id": "found_wallet", "selected_option_id": "fw_a"},
-      {"question_id": "restaurant_choice", "selected_option_id": "rc_c"},
-      {"question_id": "spontaneous_trip", "selected_option_id": "st_a"}
-    ]
-  }' | jq .
-
-# Submit calibration
-echo -e "\n4. Submitting calibration ratings..."
-curl -s -X POST "$BASE_URL/api/calibration/submit" \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $TOKEN" \
-  -d '{
-    "ratings": {
-      "placeholder_1": 5,
-      "placeholder_2": 4,
-      "placeholder_3": 2,
-      "placeholder_4": 5,
-      "placeholder_5": 3
+```json
+{
+  "user_id": "550e8400-e29b-41d4-a716-446655440000",
+  "data": {
+    "meta": {
+      "user_id": "550e8400-e29b-41d4-a716-446655440000",
+      "gender": "male",
+      "preference_target": "female",
+      "calibration_timestamp": "2024-01-14T12:00:00Z",
+      "images_rated": 10
+    },
+    "self_analysis": {
+      "embedding_vector": [0.123, -0.456, 0.789, ...],  // 512 values
+      "detected_traits": {
+        "facial_landmarks": ["placeholder"],
+        "style_presentation": ["placeholder"],
+        "vibe_tags": ["placeholder"]
+      }
+    },
+    "preference_model": {
+      "ideal_vector": [0.234, -0.567, ...],  // 512 values
+      "attraction_triggers": {
+        "mandatory_traits": ["placeholder_positive_trait"],
+        "negative_traits": ["placeholder_negative_trait"]
+      },
+      "calibration_confidence": 0.75
     }
-  }' | jq .
-
-# Check profiles
-echo -e "\n5. Checking created profiles..."
-curl -s "$BASE_URL/api/admin/profiles" | jq .
-
-# List users
-echo -e "\n6. Listing all users..."
-curl -s "$BASE_URL/api/admin/users" | jq .
-
-echo -e "\n=== Test Complete ==="
+  }
+}
 ```
 
-Run it with:
-```bash
-chmod +x test_deployment.sh
-./test_deployment.sh https://YOUR_SERVICE_URL
+---
+
+## How MetaFBP Works (What the Code Does)
+
+### 1. ResNetBackbone (feature extraction)
 ```
+Image (224x224 RGB) → ResNet18 → 512-dimensional feature vector
+```
+
+### 2. User Calibration
+```
+User rates 10 images (1-5 stars)
+    ↓
+Each image → ResNetBackbone → 512-dim features
+    ↓
+Ratings normalized (1-5 → 0.0-1.0 weights)
+    ↓
+Weighted average of all features = aggregate preference signal
+```
+
+### 3. DynamicLearner (personalization)
+```
+Aggregate preference signal (512-dim)
+    ↓
+DynamicLearner.generator neural network
+    ↓
+Personalized embedding vector (512-dim)
+    ↓
+Saved to p1_visual_vector.json
+```
+
+### 4. Output Schema
+```json
+{
+  "meta": { "user_id", "gender", "timestamp", "images_rated" },
+  "self_analysis": {
+    "embedding_vector": [512 floats],  // User's visual preference encoding
+    "detected_traits": { ... }
+  },
+  "preference_model": {
+    "ideal_vector": [512 floats],  // Centroid of liked images
+    "calibration_confidence": 0.0-1.0
+  }
+}
+```
+
+---
 
 ## Important Notes
 
-1. **Data Persistence**: Cloud Run instances are ephemeral. Data stored in SQLite will be lost when the container restarts. For production, use Cloud SQL or Firestore.
+### Data Persistence Warning
 
-2. **Scaling**: The default config allows Cloud Run to scale to multiple instances. Each instance has its own SQLite database, which means users might not see their data if routed to a different instance.
+Cloud Run instances are **ephemeral**. When the container restarts:
+- SQLite database is reset
+- Profile JSON files are lost
 
-3. **For Production**:
-   - Use Cloud SQL (PostgreSQL) instead of SQLite
-   - Use Cloud Storage for profile vectors
-   - Add proper authentication for admin endpoints
+**For testing this is fine.** For production, you'd use:
+- Cloud SQL for the database
+- Cloud Storage for profile files
+
+### First-Time Startup
+
+The first request after deployment may take 30-60 seconds because:
+1. Container needs to start
+2. PyTorch models need to load (~500MB)
+
+Subsequent requests are fast.
+
+---
 
 ## Troubleshooting
 
-### Check Logs
-```bash
-gcloud run services logs read harmonia-backend --region us-central1 --limit 50
-```
+### "Service Unavailable" Error
+- Wait 60 seconds and try again (cold start)
+- Check Cloud Run logs in Google Cloud Console
 
-### View Live Logs
-```bash
-gcloud run services logs tail harmonia-backend --region us-central1
-```
+### Build Failed
+- Make sure the Dockerfile path is `/backend/Dockerfile`
+- Check Cloud Build logs for errors
 
-### Redeploy After Changes
-```bash
-cd backend
-gcloud run deploy harmonia-backend --source . --region us-central1
-```
+### View Logs
+1. Go to Cloud Run in Google Cloud Console
+2. Click on your service
+3. Click **"Logs"** tab
+
+---
+
+## Quick Test Checklist
+
+After deployment:
+
+- [ ] Open `YOUR_URL/` - Should show login page
+- [ ] Open `YOUR_URL/api/health` - Should return `{"status":"healthy"}`
+- [ ] Create an account through the UI
+- [ ] Complete the 5 psychometric questions
+- [ ] Rate 10 images
+- [ ] Check `YOUR_URL/api/admin/profiles` - Should show your profile
