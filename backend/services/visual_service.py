@@ -366,12 +366,21 @@ class VisualService:
                 })
 
         # If no real images, provide demo placeholders
+        # Using placehold.co for more reliable placeholder images
         if not images:
+            # Generate varied placeholder colors for visual variety
+            colors = [
+                "E8B4B8", "A8D5E5", "B8E8B4", "E8D4B4", "D4B4E8",
+                "B4E8E8", "E8E8B4", "B4B8E8", "E8B4D4", "C4E8B4",
+                "B4D4E8", "E8C4B4", "D4E8B4", "B4E8D4", "E8B4E8",
+                "C4B4E8", "E8D4D4", "D4D4E8", "B4E8C4", "E8C4D4"
+            ]
             for i in range(1, count + 1):
+                color = colors[(i - 1) % len(colors)]
                 images.append({
                     "id": f"demo_{i}",
                     "filename": f"demo_{i}.jpg",
-                    "url": f"https://picsum.photos/seed/{i}/400/500"  # Random placeholder
+                    "url": f"https://placehold.co/400x500/{color}/333333?text=Image+{i}"
                 })
 
         return images

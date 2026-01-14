@@ -27,6 +27,16 @@ export default function Calibration() {
     }
   }, [user, navigate])
 
+  // Generate reliable placeholder URL using placehold.co
+  const getPlaceholderUrl = (index: number): string => {
+    const colors = [
+      "E8B4B8", "A8D5E5", "B8E8B4", "E8D4B4", "D4B4E8",
+      "B4E8E8", "E8E8B4", "B4B8E8", "E8B4D4", "C4E8B4"
+    ]
+    const color = colors[index % colors.length]
+    return `https://placehold.co/400x500/${color}/333333?text=Image+${index + 1}`
+  }
+
   // Load calibration images
   useEffect(() => {
     const loadImages = async () => {
@@ -38,7 +48,7 @@ export default function Calibration() {
           const placeholders: CalibrationImage[] = Array.from({ length: 10 }, (_, i) => ({
             id: `placeholder_${i + 1}`,
             filename: `placeholder_${i + 1}.jpg`,
-            url: `https://picsum.photos/seed/${i + 1}/400/500`
+            url: getPlaceholderUrl(i)
           }))
           setImages(placeholders)
         } else {
@@ -49,7 +59,7 @@ export default function Calibration() {
         const placeholders: CalibrationImage[] = Array.from({ length: 10 }, (_, i) => ({
           id: `placeholder_${i + 1}`,
           filename: `placeholder_${i + 1}.jpg`,
-          url: `https://picsum.photos/seed/${i + 1}/400/500`
+          url: getPlaceholderUrl(i)
         }))
         setImages(placeholders)
         console.error(err)
@@ -150,7 +160,8 @@ export default function Calibration() {
               src={currentImage.url}
               alt={`Calibration image ${currentIndex + 1}`}
               onError={(e) => {
-                e.currentTarget.src = `https://picsum.photos/seed/${currentIndex}/400/500`
+                // Use reliable placeholder on error
+                e.currentTarget.src = getPlaceholderUrl(currentIndex)
               }}
             />
           </div>
