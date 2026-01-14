@@ -3,11 +3,10 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install system dependencies (including those needed for bcrypt and cryptography)
+# Install system dependencies (for argon2-cffi, cryptography, and other packages)
 RUN apt-get update && apt-get install -y \
     libpq-dev \
     gcc \
-    g++ \
     curl \
     libffi-dev \
     libssl-dev \

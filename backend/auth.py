@@ -17,8 +17,8 @@ SECRET_KEY = os.getenv("SECRET_KEY", "harmonia-secret-key-change-in-production")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 days
 
-# Password hashing
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Password hashing (using Argon2 - winner of Password Hashing Competition)
+pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 
 # Bearer token security
 security = HTTPBearer()
