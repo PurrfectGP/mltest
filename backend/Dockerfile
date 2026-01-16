@@ -27,6 +27,9 @@ COPY . .
 # Create data directories (including logs)
 RUN mkdir -p /app/data/profiles /app/data/global_calibration /app/data/logs
 
+# Copy calibration images from repo (if they exist)
+COPY --chown=root:root calibration_images/* /app/data/global_calibration/ 2>/dev/null || true
+
 # Set environment variables
 ENV PORT=8080
 ENV DATA_DIR=/app/data
