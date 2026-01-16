@@ -34,6 +34,11 @@ COPY --chown=root:root calibration_images/* /app/data/global_calibration/ 2>/dev
 ENV PORT=8080
 ENV DATA_DIR=/app/data
 ENV DEBUG=true
+# Cloud SQL variables (set via Cloud Run or Secret Manager)
+# ENV CLOUD_SQL_CONNECTION_NAME=project:region:instance
+# ENV DB_USER=postgres
+# ENV DB_PASS=your-password
+# ENV DB_NAME=harmonia
 
 # Expose port (Cloud Run uses 8080 by default)
 EXPOSE 8080

@@ -6,13 +6,14 @@ A Progressive Web App for visual preference calibration using the MetaFBP algori
 
 ## Table of Contents
 - [Overview](#overview)
+- [Google Cloud Free Trial Benefits](#google-cloud-free-trial-benefits)
 - [Architecture](#architecture)
 - [Local Development](#local-development)
-- [Google Cloud Deployment](#google-cloud-deployment)
+- [Production Deployment (Cloud SQL + Cloud Run)](#production-deployment)
 - [API Endpoints](#api-endpoints)
 - [User Flow](#user-flow)
-- [For Christian](#for-christian---google-cloud-setup)
-- [For Avery](#for-avery---google-cloud-setup)
+- [For Christian](#for-christian---full-setup-guide)
+- [For Avery](#for-avery---full-setup-guide)
 
 ---
 
@@ -26,55 +27,73 @@ Harmonia Phase 1 captures user visual preferences through image ratings and gene
 - Visual calibration (rate 10 portrait images, 1-5 stars)
 - MetaFBP vector generation (512-dimensional embeddings)
 - Profile data export (JSON download)
+- **Persistent PostgreSQL database** (Cloud SQL)
+
+---
+
+## Google Cloud Free Trial Benefits
+
+### $300 Credit for 90 Days
+
+You get **$300 in free credits** to use across all Google Cloud services for 90 days!
+
+**What's Included:**
+
+| Service | What We Use It For | Est. Monthly Cost |
+|---------|-------------------|-------------------|
+| **Cloud Run** | Host the FastAPI app | ~$0-10 (free tier covers most) |
+| **Cloud SQL PostgreSQL** | Persistent database | ~$7-15/month |
+| **Cloud Storage** | Store calibration images | ~$0-2/month |
+| **Cloud Build** | Build Docker images | Free (120 min/day) |
+| **Artifact Registry** | Store Docker images | ~$0-1/month |
+
+**Total estimated: ~$10-30/month** (well within $300 credit!)
+
+### Cloud SQL Free Trial Instance
+
+Additionally, Google offers a **30-day Cloud SQL free trial** with:
+- Enterprise Plus edition
+- High availability
+- Data cache enabled
+- No credit card charge during trial
+
+### Always Free Tier (After Trial)
+
+Even after the $300 credit, these remain free:
+- Cloud Run: 2 million requests/month
+- Cloud Build: 120 build-minutes/day
+- Cloud Storage: 5GB
+- 1 e2-micro VM instance
 
 ---
 
 ## Architecture
 
 ```
-mltest/
-├── backend/                 # FastAPI Python backend
-│   ├── main.py             # Main app, routes, error handling
-│   ├── auth.py             # JWT authentication (pwdlib/Argon2)
-│   ├── database.py         # SQLite database setup
-│   ├── db_models.py        # SQLAlchemy models
-│   ├── schemas.py          # Pydantic schemas
-│   ├── routers/            # API route modules
-│   │   ├── auth.py         # /api/auth/*
-│   │   ├── calibration.py  # /api/calibration/*
-│   │   └── psychometric.py # /api/psychometric/*
-│   ├── services/
-│   │   └── visual_service.py  # MetaFBP algorithm
-│   ├── models/
-│   │   ├── resnet.py       # ResNet backbone (512-dim features)
-│   │   └── dynamic_maml.py # Dynamic learner for personalization
-│   ├── static/             # Built frontend files
-│   ├── requirements.txt
-│   └── Dockerfile
-│
-├── frontend/               # React + TypeScript + Vite
-│   ├── src/
-│   │   ├── App.tsx        # Main app with routing
-│   │   ├── pages/         # Page components
-│   │   │   ├── Signup.tsx
-│   │   │   ├── Login.tsx
-│   │   │   ├── Setup.tsx      # Image download loading
-│   │   │   ├── Psychometric.tsx
-│   │   │   ├── Calibration.tsx
-│   │   │   └── Complete.tsx
-│   │   └── services/
-│   │       └── api.ts     # API client
-│   ├── package.json
-│   └── vite.config.ts
-│
-└── AI_TOKEN_EFFICIENCY_GUIDE.md  # AI agent guidelines
+┌─────────────────────────────────────────────────────────────┐
+│                    Google Cloud Platform                     │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  ┌──────────────┐      ┌──────────────┐                     │
+│  │  Cloud Run   │──────│  Cloud SQL   │                     │
+│  │  (FastAPI)   │      │ (PostgreSQL) │                     │
+│  │  2 vCPU/2GB  │      │  Enterprise  │                     │
+│  └──────────────┘      └──────────────┘                     │
+│         │                                                    │
+│         ▼                                                    │
+│  ┌──────────────┐                                           │
+│  │Cloud Storage │ (optional - for images)                   │
+│  └──────────────┘                                           │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ### Tech Stack
-- **Backend**: FastAPI, SQLAlchemy, SQLite, PyTorch (CPU)
+- **Backend**: FastAPI, SQLAlchemy, PostgreSQL, PyTorch (CPU)
 - **Frontend**: React 18, TypeScript, Vite, React Router
 - **Auth**: JWT tokens, Argon2 password hashing
 - **ML**: ResNet-18 backbone, custom DynamicLearner
+- **Database**: Cloud SQL PostgreSQL (persistent!)
 
 ---
 
@@ -83,76 +102,96 @@ mltest/
 ### Prerequisites
 - Python 3.11+
 - Node.js 18+
-- npm or yarn
 
-### Backend Setup
+### Backend Setup (SQLite for local dev)
 
 ```bash
-# Navigate to backend
 cd backend
-
-# Create virtual environment
 python -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
 
-# Install dependencies
 pip install -r requirements.txt
+pip install torch==2.1.0+cpu torchvision==0.16.0+cpu -f https://download.pytorch.org/whl/cpu
 
-# Install PyTorch CPU
-pip install torch==2.1.0+cpu torchvision==0.16.0+cpu -f https://download.pytorch.org/whl/cpu/torch_stable.html
-
-# Run the server
-uvicorn main:app --reload --host 0.0.0.0 --port 8080
+uvicorn main:app --reload --port 8080
 ```
-
-Backend runs at: `http://localhost:8080`
-API docs at: `http://localhost:8080/docs`
 
 ### Frontend Setup
 
 ```bash
-# Navigate to frontend
 cd frontend
-
-# Install dependencies
 npm install
-
-# Run dev server
 npm run dev
-```
-
-Frontend runs at: `http://localhost:5173`
-
-### Build Frontend for Production
-
-```bash
-cd frontend
-npm run build
-
-# Copy to backend static folder
-cp -r dist/* ../backend/static/
 ```
 
 ---
 
-## Google Cloud Deployment
+## Production Deployment
 
-### URLs (after deployment)
-- **App URL**: `https://harmonia-phase1-XXXXXXXXXX-uc.a.run.app`
-- **API Docs**: `https://harmonia-phase1-XXXXXXXXXX-uc.a.run.app/docs`
-- **Health Check**: `https://harmonia-phase1-XXXXXXXXXX-uc.a.run.app/api/health`
-
-### Deploy to Cloud Run
+### Step 1: Create Google Cloud Project
 
 ```bash
-# Authenticate with Google Cloud
+# Install gcloud CLI (if not installed)
+# macOS: brew install google-cloud-sdk
+# Windows: https://cloud.google.com/sdk/docs/install
+
+# Login and create project
 gcloud auth login
+gcloud projects create harmonia-phase1 --name="Harmonia Phase 1"
+gcloud config set project harmonia-phase1
 
-# Set project
-gcloud config set project YOUR_PROJECT_ID
+# Enable billing (required, but won't charge during free trial)
+# Do this in Console: https://console.cloud.google.com/billing
+```
 
-# Build and deploy
+### Step 2: Enable Required APIs
+
+```bash
+gcloud services enable \
+  cloudbuild.googleapis.com \
+  run.googleapis.com \
+  sqladmin.googleapis.com \
+  secretmanager.googleapis.com \
+  artifactregistry.googleapis.com
+```
+
+### Step 3: Create Cloud SQL PostgreSQL Instance
+
+```bash
+# Create a PostgreSQL instance (free trial eligible!)
+gcloud sql instances create harmonia-db \
+  --database-version=POSTGRES_16 \
+  --tier=db-f1-micro \
+  --region=us-central1 \
+  --root-password=YOUR_SECURE_PASSWORD
+
+# Create the database
+gcloud sql databases create harmonia --instance=harmonia-db
+
+# Create a user
+gcloud sql users create harmonia_user \
+  --instance=harmonia-db \
+  --password=YOUR_USER_PASSWORD
+```
+
+### Step 4: Store Secrets in Secret Manager
+
+```bash
+# Store database password
+echo -n "YOUR_USER_PASSWORD" | gcloud secrets create db-password --data-file=-
+
+# Grant Cloud Run access to secrets
+gcloud secrets add-iam-policy-binding db-password \
+  --member="serviceAccount:PROJECT_NUMBER-compute@developer.gserviceaccount.com" \
+  --role="roles/secretmanager.secretAccessor"
+```
+
+### Step 5: Deploy to Cloud Run
+
+```bash
 cd backend
+
+# Deploy with Cloud SQL connection
 gcloud run deploy harmonia-phase1 \
   --source . \
   --platform managed \
@@ -160,12 +199,20 @@ gcloud run deploy harmonia-phase1 \
   --allow-unauthenticated \
   --memory 2Gi \
   --cpu 2 \
-  --timeout 300
+  --set-env-vars "DB_USER=harmonia_user,DB_NAME=harmonia" \
+  --set-secrets "DB_PASS=db-password:latest" \
+  --add-cloudsql-instances PROJECT_ID:us-central1:harmonia-db \
+  --set-env-vars "CLOUD_SQL_CONNECTION_NAME=PROJECT_ID:us-central1:harmonia-db"
 ```
 
-### View Logs
+### Step 6: Verify Deployment
+
 ```bash
-gcloud run logs read harmonia-phase1 --region us-central1
+# Get the URL
+gcloud run services describe harmonia-phase1 --region us-central1 --format="value(status.url)"
+
+# Test health endpoint
+curl https://YOUR_URL/api/health
 ```
 
 ---
@@ -185,123 +232,30 @@ gcloud run logs read harmonia-phase1 --region us-central1
 | POST | `/api/calibration/submit` | Submit ratings, get vector |
 | GET | `/api/calibration/vector` | Get user's vector |
 | GET | `/api/profile/download` | Download full profile JSON |
-| GET | `/api/health` | Health check |
-| GET | `/api/logs` | View debug logs |
 
 ---
 
 ## User Flow
 
 ```
-1. Signup (/signup)
-   └── Enter email, username, password, gender, preference
-
-2. Setup (/setup)
-   └── Loading screen while downloading 10 portrait images
-
-3. Psychometric (/psychometric)
-   └── Answer 5 personality questions
-
-4. Calibration (/calibration)
-   └── Rate 10 images (1-5 stars)
-
-5. Complete (/complete)
-   └── View results, download profile JSON
+Signup → Setup (download images) → Psychometric (5 questions) → Calibration (rate 10 images) → Complete
 ```
 
 ---
 
-## For Christian - Google Cloud Setup
+## For Christian - Full Setup Guide
 
-### Request: Please set up Google Cloud Free Tier
+Hey Christian! Here's how to set up the full production environment with your $300 free credits.
 
-Hey Christian! We need a Google Cloud project for deploying Harmonia. Here's what we need:
+### 1. Create Google Cloud Account
 
-#### 1. Create Google Cloud Account (Free Tier)
-- Go to: https://cloud.google.com/free
-- Sign up with a Google account
-- Free tier includes:
-  - $300 credit for 90 days
-  - Cloud Run: 2 million requests/month free
-  - Cloud Build: 120 build-minutes/day free
+1. Go to https://cloud.google.com/free
+2. Click "Get started for free"
+3. Sign in with Google account
+4. Add payment method (won't be charged during trial!)
+5. You now have **$300 credit for 90 days**
 
-#### 2. Create a New Project
-```
-Project name: harmonia-phase1
-Project ID: harmonia-phase1-XXXXX (auto-generated)
-```
-
-#### 3. Enable Required APIs
-In Google Cloud Console, enable:
-- Cloud Run API
-- Cloud Build API
-- Container Registry API
-
-#### 4. Install gcloud CLI
-```bash
-# macOS
-brew install google-cloud-sdk
-
-# Windows
-# Download from: https://cloud.google.com/sdk/docs/install
-
-# Linux
-curl https://sdk.cloud.google.com | bash
-```
-
-#### 5. Authenticate
-```bash
-gcloud auth login
-gcloud config set project YOUR_PROJECT_ID
-```
-
-#### 6. Deploy
-```bash
-cd backend
-gcloud run deploy harmonia-phase1 \
-  --source . \
-  --platform managed \
-  --region us-central1 \
-  --allow-unauthenticated \
-  --memory 2Gi \
-  --cpu 2
-```
-
-#### 7. Share the URL
-After deployment, share the Cloud Run URL:
-`https://harmonia-phase1-XXXXXXXXXX-uc.a.run.app`
-
----
-
-## For Avery - Google Cloud Setup
-
-### Request: Please set up Google Cloud Free Tier
-
-Hey Avery! We need a Google Cloud project for deploying Harmonia. Here's what we need:
-
-#### 1. Create Google Cloud Account (Free Tier)
-- Go to: https://cloud.google.com/free
-- Sign up with a Google account
-- Free tier includes:
-  - $300 credit for 90 days
-  - Cloud Run: 2 million requests/month free
-  - Cloud Build: 120 build-minutes/day free
-
-#### 2. Create a New Project
-```
-Project name: harmonia-avery
-Project ID: harmonia-avery-XXXXX (auto-generated)
-```
-
-#### 3. Enable Required APIs
-In Google Cloud Console (https://console.cloud.google.com):
-1. Go to "APIs & Services" > "Enable APIs"
-2. Search and enable:
-   - Cloud Run API
-   - Cloud Build API
-   - Artifact Registry API
-
-#### 4. Install gcloud CLI
+### 2. Install gcloud CLI
 
 **macOS:**
 ```bash
@@ -309,104 +263,249 @@ brew install google-cloud-sdk
 ```
 
 **Windows:**
-Download installer from: https://cloud.google.com/sdk/docs/install
+Download from: https://cloud.google.com/sdk/docs/install
+
+### 3. Set Up Project
+
+```bash
+# Login
+gcloud auth login
+
+# Create project
+gcloud projects create harmonia-christian --name="Harmonia"
+gcloud config set project harmonia-christian
+
+# Enable APIs
+gcloud services enable cloudbuild.googleapis.com run.googleapis.com sqladmin.googleapis.com secretmanager.googleapis.com
+```
+
+### 4. Create Cloud SQL Database
+
+```bash
+# This creates a PostgreSQL database (uses ~$7-15/month of your credit)
+gcloud sql instances create harmonia-db \
+  --database-version=POSTGRES_16 \
+  --tier=db-f1-micro \
+  --region=us-central1 \
+  --root-password=ChooseSecurePassword123
+
+# Create database and user
+gcloud sql databases create harmonia --instance=harmonia-db
+gcloud sql users create app_user --instance=harmonia-db --password=AppUserPassword456
+```
+
+### 5. Store Password as Secret
+
+```bash
+echo -n "AppUserPassword456" | gcloud secrets create db-password --data-file=-
+```
+
+### 6. Deploy the App
+
+```bash
+# Clone repo
+git clone <repo-url>
+cd mltest/backend
+
+# Get your project number
+PROJECT_NUMBER=$(gcloud projects describe harmonia-christian --format="value(projectNumber)")
+
+# Grant secret access
+gcloud secrets add-iam-policy-binding db-password \
+  --member="serviceAccount:${PROJECT_NUMBER}-compute@developer.gserviceaccount.com" \
+  --role="roles/secretmanager.secretAccessor"
+
+# Deploy!
+gcloud run deploy harmonia-phase1 \
+  --source . \
+  --region us-central1 \
+  --allow-unauthenticated \
+  --memory 2Gi \
+  --cpu 2 \
+  --set-env-vars "DB_USER=app_user,DB_NAME=harmonia,CLOUD_SQL_CONNECTION_NAME=harmonia-christian:us-central1:harmonia-db" \
+  --set-secrets "DB_PASS=db-password:latest" \
+  --add-cloudsql-instances harmonia-christian:us-central1:harmonia-db
+```
+
+### 7. Get Your URL
+
+```bash
+gcloud run services describe harmonia-phase1 --region us-central1 --format="value(status.url)"
+```
+
+Share this URL with the team!
+
+---
+
+## For Avery - Full Setup Guide
+
+Hey Avery! Here's your complete guide to setting up Harmonia with the $300 Google Cloud credits.
+
+### 1. Sign Up for Google Cloud
+
+1. Visit https://cloud.google.com/free
+2. Click "Get started for free"
+3. Use your Google account
+4. Add a payment method (you won't be charged!)
+5. Receive **$300 credit valid for 90 days**
+
+### 2. Install Command Line Tools
+
+**macOS:**
+```bash
+brew install google-cloud-sdk
+```
+
+**Windows:**
+Download installer: https://cloud.google.com/sdk/docs/install
 
 **Linux:**
 ```bash
 curl https://sdk.cloud.google.com | bash
 exec -l $SHELL
-gcloud init
 ```
 
-#### 5. First-Time Setup
+### 3. Initial Setup
+
 ```bash
-# Login to Google Cloud
+# Authenticate
 gcloud auth login
 
-# Set your project
-gcloud config set project YOUR_PROJECT_ID
+# Create your project
+gcloud projects create harmonia-avery --name="Harmonia Avery"
+gcloud config set project harmonia-avery
 
-# Verify
-gcloud config list
+# Enable required services
+gcloud services enable \
+  cloudbuild.googleapis.com \
+  run.googleapis.com \
+  sqladmin.googleapis.com \
+  secretmanager.googleapis.com
 ```
 
-#### 6. Deploy the App
+### 4. Create PostgreSQL Database
+
 ```bash
-# Clone the repo (or pull latest)
+# Create Cloud SQL instance (~$7-15/month from your $300 credit)
+gcloud sql instances create harmonia-db \
+  --database-version=POSTGRES_16 \
+  --tier=db-f1-micro \
+  --region=us-central1 \
+  --root-password=YourRootPassword123!
+
+# Wait for instance to be ready (2-3 minutes)
+gcloud sql instances describe harmonia-db
+
+# Create the app database
+gcloud sql databases create harmonia --instance=harmonia-db
+
+# Create app user
+gcloud sql users create harmonia_app \
+  --instance=harmonia-db \
+  --password=YourAppPassword456!
+```
+
+### 5. Secure Your Password
+
+```bash
+# Store password in Secret Manager
+echo -n "YourAppPassword456!" | gcloud secrets create harmonia-db-pass --data-file=-
+
+# Get project number for permissions
+PROJECT_NUM=$(gcloud projects describe harmonia-avery --format="value(projectNumber)")
+
+# Allow Cloud Run to access the secret
+gcloud secrets add-iam-policy-binding harmonia-db-pass \
+  --member="serviceAccount:${PROJECT_NUM}-compute@developer.gserviceaccount.com" \
+  --role="roles/secretmanager.secretAccessor"
+```
+
+### 6. Deploy the Application
+
+```bash
+# Get the code
 git clone <repo-url>
 cd mltest/backend
 
-# Deploy to Cloud Run
+# Deploy to Cloud Run with database connection
 gcloud run deploy harmonia-phase1 \
   --source . \
-  --platform managed \
   --region us-central1 \
+  --platform managed \
   --allow-unauthenticated \
   --memory 2Gi \
   --cpu 2 \
-  --timeout 300
+  --timeout 300 \
+  --set-env-vars "DB_USER=harmonia_app" \
+  --set-env-vars "DB_NAME=harmonia" \
+  --set-env-vars "CLOUD_SQL_CONNECTION_NAME=harmonia-avery:us-central1:harmonia-db" \
+  --set-secrets "DB_PASS=harmonia-db-pass:latest" \
+  --add-cloudsql-instances harmonia-avery:us-central1:harmonia-db
 ```
 
-#### 7. After Deployment
-You'll get a URL like:
-```
-https://harmonia-phase1-abc123xyz-uc.a.run.app
+### 7. Verify Everything Works
+
+```bash
+# Get your app URL
+URL=$(gcloud run services describe harmonia-phase1 --region us-central1 --format="value(status.url)")
+echo "Your app is live at: $URL"
+
+# Test the health endpoint
+curl $URL/api/health
+
+# Test the API docs
+echo "API docs at: $URL/docs"
 ```
 
-Share this URL with the team!
+### 8. Monitor Your Usage
 
-#### 8. Useful Commands
 ```bash
 # View logs
 gcloud run logs read harmonia-phase1 --region us-central1
 
-# Update deployment (after code changes)
-gcloud run deploy harmonia-phase1 --source .
-
-# Check service status
-gcloud run services describe harmonia-phase1 --region us-central1
+# Check billing (in Console)
+# https://console.cloud.google.com/billing
 ```
 
----
+### Cost Tracking
 
-## Environment Variables
+Your $300 credit should last well beyond the 90-day trial:
+- Cloud SQL (db-f1-micro): ~$7-15/month
+- Cloud Run: ~$0-10/month (mostly free tier)
+- Storage/Build: ~$1-5/month
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `DEBUG` | `true` | Enable debug logging |
-| `SECRET_KEY` | random | JWT signing key (set in production!) |
-| `DATA_DIR` | `/app/data` | Data storage directory |
-| `CORS_ORIGINS` | `*` | Allowed CORS origins |
+**Estimated total: $10-30/month = 10+ months of usage!**
 
 ---
 
 ## Troubleshooting
 
+### "Session expired" error
+- Database was reset (SQLite only) - use Cloud SQL for persistence
+- Clear localStorage and re-login
+
 ### Images not loading
-- Check `/api/setup/status` - should return `{"ready": true, "count": 10}`
-- If not, trigger download: `POST /api/setup/download-images`
+- Check `/api/setup/status`
+- Trigger download: `POST /api/setup/download-images`
+- Or add images to `backend/calibration_images/`
 
-### Blank page
-- Check browser console for JS errors
-- Verify static files exist in `backend/static/assets/`
+### Database connection issues
+```bash
+# Check Cloud SQL status
+gcloud sql instances describe harmonia-db
 
-### Auth errors
-- Clear localStorage: `localStorage.removeItem('token')`
-- Check `/api/logs` for server errors
-
-### Database issues
-- SQLite file at `/app/data/harmonia.db`
-- Delete to reset: `rm /app/data/harmonia.db`
+# View Cloud Run logs
+gcloud run logs read harmonia-phase1 --region us-central1 --limit 50
+```
 
 ---
 
-## Recent Changes
+## Sources
 
-1. **Security fixes**: Replaced passlib with pwdlib (Argon2)
-2. **Error handling**: Global JSON error handler
-3. **Image setup**: Downloads 10 portraits from Unsplash on first use
-4. **Profile export**: Download button for user data + MetaFBP vector
-5. **Debug logging**: `/api/logs` endpoint for troubleshooting
+- [Google Cloud Free Trial](https://cloud.google.com/free)
+- [Cloud SQL Free Trial](https://docs.cloud.google.com/sql/docs/postgres/free-trial-instance)
+- [Connect Cloud Run to Cloud SQL](https://cloud.google.com/sql/docs/postgres/connect-run)
+- [Cloud SQL Python Connector](https://github.com/GoogleCloudPlatform/cloud-sql-python-connector)
 
 ---
 
