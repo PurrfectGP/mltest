@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import { useState, useEffect, createContext, useContext } from 'react'
 import Signup from './pages/Signup'
 import Login from './pages/Login'
+import Setup from './pages/Setup'
 import Psychometric from './pages/Psychometric'
 import Calibration from './pages/Calibration'
 import Complete from './pages/Complete'
@@ -88,6 +89,11 @@ function App() {
         <Routes>
           <Route path="/signup" element={<Signup />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/setup" element={
+            <ProtectedRoute>
+              <Setup />
+            </ProtectedRoute>
+          } />
           <Route path="/psychometric" element={
             <ProtectedRoute>
               <Psychometric />
@@ -105,7 +111,7 @@ function App() {
           } />
           <Route path="/" element={
             <Navigate to={user ? (
-              !user.psychometric_complete ? "/psychometric" :
+              !user.psychometric_complete ? "/setup" :
               !user.calibration_complete ? "/calibration" :
               "/complete"
             ) : "/signup"} replace />

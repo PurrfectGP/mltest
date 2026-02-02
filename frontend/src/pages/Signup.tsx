@@ -59,7 +59,7 @@ export default function Signup() {
       })
 
       login(response.access_token, response.user)
-      navigate('/psychometric')
+      navigate('/setup')
     } catch (err: unknown) {
       if (err && typeof err === 'object' && 'response' in err) {
         const axiosError = err as { response?: { data?: { detail?: string } } }
